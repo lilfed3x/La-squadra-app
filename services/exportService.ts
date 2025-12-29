@@ -1,12 +1,12 @@
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { Player, Note } from '../types';
-import { CURRENT_SCOUT, OTHER_SCOUTS } from './mockData';
+import { dataService } from './dataService';
 
 // Helper to resolve scout name
 const getScoutName = (scoutId: string): string => {
-  const allScouts = [CURRENT_SCOUT, ...OTHER_SCOUTS];
-  const found = allScouts.find(s => s.id === scoutId);
+  const users = dataService.getUsers();
+  const found = users.find(s => s.id === scoutId);
   return found ? found.name : 'Scout Desconocido';
 };
 

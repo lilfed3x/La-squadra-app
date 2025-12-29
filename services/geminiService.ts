@@ -1,13 +1,14 @@
-import { GoogleGenAI } from "@google/genai";
+
+import { GoogleGenAI, Type } from "@google/genai";
 import { Note, Player } from '../types';
 
+// Fix: Directly use process.env.API_KEY in the GoogleGenAI constructor as required by guidelines
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
     console.error("API Key not found in environment variables.");
     return null;
   }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const generateScoutingReport = async (player: Player, notes: Note[]): Promise<string> => {
@@ -44,10 +45,12 @@ export const generateScoutingReport = async (player: Player, notes: Note[]): Pro
   `;
 
   try {
+    // Fix: Call generateContent with both model name and prompt/contents directly
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
+    // Fix: Access .text as a property (not a method)
     return response.text || "No se pudo generar el informe.";
   } catch (error) {
     console.error("Error generating report:", error);
@@ -61,21 +64,26 @@ export const suggestNoteTags = async (content: string): Promise<string[]> => {
 
   const prompt = `
     Analiza esta nota de scouting de fútbol y sugiere hasta 3 etiquetas cortas y relevantes en ESPAÑOL (ej. 'Finalización', 'Ritmo', 'Trabajo', 'Riesgo de Lesión').
-    Devuelve SOLAMENTE un array JSON de strings.
-    
-    Nota: "${content}"
   `;
 
   try {
+    // Fix: Call generateContent with both model name and contents directly
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
+      contents: `${prompt}\nNota: "${content}"`,
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.STRING
+          }
+        }
       }
     });
     
-    const text = response.text;
+    // Fix: Access .text property directly and trim whitespace
+    const text = response.text?.trim();
     if (!text) return [];
     
     return JSON.parse(text) as string[];

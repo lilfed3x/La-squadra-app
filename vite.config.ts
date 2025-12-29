@@ -1,15 +1,22 @@
+
+// Fix: Explicitly import process from node:process to resolve TypeScript errors for Node.js globals
+import process from 'node:process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  // Carga variables de entorno del sistema (como las de Vercel)
+  const env = loadEnv(mode, process.cwd(), '');
+  
   return {
-    plugins: [react()],
+    plugins: [
+      react()
+    ],
     define: {
-      // Polyfill process.env to allow accessing API_KEY as currently written in the code
-      'process.env': {
-        API_KEY: env.API_KEY
-      }
+      // Mapeo de variables para que estén disponibles en el cliente
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || '')
     },
     server: {
       port: 3000,
@@ -17,7 +24,8 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      // Ensure local assets like sw.js are handled if needed, though usually they go in public/
+      sourcemap: false,
+      minify: 'esbuild',
       rollupOptions: {
         input: {
           main: './index.html',

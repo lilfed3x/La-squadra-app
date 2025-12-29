@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Note, NoteCategory, User } from '../types';
 import { Clock, Filter, Search, Tag, SlidersHorizontal, Image as ImageIcon, Film, Trash2, Edit2 } from 'lucide-react';
-import { CURRENT_SCOUT, OTHER_SCOUTS } from '../services/mockData';
 
 interface NoteListProps {
   notes: Note[];
@@ -10,6 +9,7 @@ interface NoteListProps {
   selectedCategory: NoteCategory | 'All';
   setSelectedCategory: (c: NoteCategory | 'All') => void;
   currentUser: User | null;
+  allUsers: User[];
   onEditNote?: (note: Note) => void;
   onDeleteNote?: (noteId: string) => void;
 }
@@ -21,15 +21,13 @@ export const NoteList: React.FC<NoteListProps> = ({
   selectedCategory,
   setSelectedCategory,
   currentUser,
+  allUsers,
   onEditNote,
   onDeleteNote
 }) => {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [filterAuthor, setFilterAuthor] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
-
-  // Combine all known scouts for the filter
-  const allScouts = [CURRENT_SCOUT, ...OTHER_SCOUTS];
 
   const filteredNotes = useMemo(() => {
     let result = notes.filter((note) => {
@@ -55,15 +53,10 @@ export const NoteList: React.FC<NoteListProps> = ({
   };
 
   const getScoutDetails = (scoutId: string) => {
-    // Check if it matches a known mock scout
-    const mockScout = allScouts.find(s => s.id === scoutId);
-    if (mockScout) return mockScout;
-
-    // Check if it matches current logged in user
-    if (currentUser && currentUser.id === scoutId) {
-      return { name: currentUser.name, avatar: currentUser.avatar || '' };
+    const scout = allUsers.find(u => u.id === scoutId);
+    if (scout) {
+        return { name: scout.name, avatar: scout.avatar || '' };
     }
-
     return { name: 'Scout Desconocido', avatar: '' };
   };
 
@@ -129,7 +122,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                 className="w-full bg-scout-900 text-scout-200 px-3 py-2 rounded-lg border border-scout-700 focus:border-scout-500 outline-none text-sm"
               >
                 <option value="all">Todos los Scouts</option>
-                {allScouts.map(scout => (
+                {allUsers.map(scout => (
                   <option key={scout.id} value={scout.id}>{scout.name}</option>
                 ))}
               </select>

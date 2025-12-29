@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, PlayerStats, ContractDetails, PhysicalProfile, NutritionalReport, BodyCompositionEntry } from '../types';
 import { X, Save, User, Briefcase, Activity, Apple, Plus, Trash2, Upload, AlertCircle } from 'lucide-react';
-import { getRandomAvatar } from '../services/mockData';
 
 export type ModalTab = 'general' | 'contract' | 'physical' | 'nutrition';
 
@@ -76,6 +75,16 @@ const POSITIONS = [
   "ED - Extremo Derecho",
   "EI - Extremo Izquierdo"
 ];
+
+// Fallback avatars to avoid dependency on mockData service
+const DEFAULT_AVATARS = [
+  'https://cdn-icons-png.flaticon.com/512/4140/4140048.png',
+  'https://cdn-icons-png.flaticon.com/512/4140/4140047.png',
+  'https://cdn-icons-png.flaticon.com/512/4140/4140037.png',
+  'https://cdn-icons-png.flaticon.com/512/4140/4140051.png'
+];
+
+const getRandomAvatar = () => DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
 
 export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({ 
   isOpen, 

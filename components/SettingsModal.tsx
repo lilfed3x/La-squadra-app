@@ -362,6 +362,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                                <td className="px-4 py-3 text-right">
                                                    <div className="flex justify-end gap-2">
                                                        <button 
+                                                         type="button"
                                                          onClick={() => openEditUser(user)}
                                                          className="p-1.5 hover:bg-scout-700 text-scout-400 hover:text-white rounded transition-colors"
                                                          title="Editar / Cambiar Clave"
@@ -370,6 +371,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                                        </button>
                                                        {user.id !== currentUser.id && (
                                                            <button 
+                                                             type="button"
                                                              onClick={() => handleDeleteUser(user.id)}
                                                              className="p-1.5 hover:bg-red-500/20 text-scout-400 hover:text-red-400 rounded transition-colors"
                                                              title="Dar de Baja"
