@@ -16,16 +16,43 @@ const getEnv = (key: string) => {
   return '';
 };
 
-// Helper to map Supabase user to App User type
+// Helper to map Supabase user to App User type with SELF-HEALING for missing profiles
 const mapSupabaseUser = async (sbUser: any): Promise<User | null> => {
   if (!sbUser) return null;
 
-  // Fetch profile details from 'profiles' table
-  const { data: profile } = await supabase
+  // 1. Try to fetch profile details from 'profiles' table
+  let { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', sbUser.id)
     .single();
+
+  // 2. SELF-HEALING: If profile is missing (error code PGRST116), create it immediately
+  if (error && (error.code === 'PGRST116' || error.message.includes('0 rows'))) {
+      console.log('⚠️ Perfil no encontrado para usuario existente. Ejecutando auto-reparación...');
+      
+      const newProfile = {
+          id: sbUser.id,
+          name: sbUser.user_metadata?.name || 'Usuario',
+          email: sbUser.email || '',
+          role: 'scout', // Default role
+          organization: '',
+          avatar: ''
+      };
+
+      const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .upsert(newProfile)
+          .select()
+          .single();
+
+      if (!createError && createdProfile) {
+          console.log('✅ Perfil restaurado exitosamente.');
+          profile = createdProfile;
+      } else {
+          console.error('❌ Falló la auto-reparación del perfil:', createError?.message);
+      }
+  }
 
   return {
     id: sbUser.id,
@@ -92,9 +119,10 @@ export const AuthService = {
 
     if (error) return { success: false, error: error.message };
 
-    // 2. CRITICAL FIX: Manually insert into profiles table immediately
+    // 2. ROBUST INSERT: Use UPSERT instead of INSERT
+    // This prevents errors if the DB Trigger already created the profile
     if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert([
+      const { error: profileError } = await supabase.from('profiles').upsert([
         {
           id: data.user.id,
           name: name,
@@ -105,8 +133,8 @@ export const AuthService = {
       ]);
 
       if (profileError) {
-        console.error("Error creating profile record:", profileError);
-        // We continue because the auth user was created, but log the error
+        console.error("Error upserting profile record:", profileError);
+        // We allow success because mapSupabaseUser's self-healing will fix it on next login if needed
       }
     }
 
@@ -182,15 +210,13 @@ export const AuthService = {
   adminCreateUser: async (name: string, email: string, password: string, role: string, organization: string) => {
     if (!isSupabaseConfigured) return { success: false, error: "Configuración incompleta." };
 
-    // TRICK: Create a temporary Supabase client with in-memory storage.
-    // This prevents the current Admin session from being overwritten in localStorage when signing up the new user.
-    // Use the URL/Key from main client fallback if env vars missing
+    // Use temp client to avoid logging out current admin
     const tempSupabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://jzaijvrabivetbgzvohk.supabase.co';
     const tempSupabaseKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6YWlqdnJhYml2ZXRiZ3p2b2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNDAzNjIsImV4cCI6MjA4MjYxNjM2Mn0.5qW6YhSgUKlWGsq5FD_PwOSUBpbIVLilCNx4znf7wk8';
 
     const tempClient = createClient(tempSupabaseUrl, tempSupabaseKey, {
         auth: {
-            persistSession: false, // Don't touch localStorage
+            persistSession: false, 
             autoRefreshToken: false,
             detectSessionInUrl: false
         }
@@ -210,8 +236,7 @@ export const AuthService = {
 
     if (!newUserId) return { success: false, error: "No se pudo obtener el ID del usuario." };
 
-    // 2. FIX: Perform UPSERT (Insert or Update) into profiles
-    // Use upsert to be safe: if a trigger created it, we update it; if not, we create it.
+    // 2. Perform UPSERT into profiles
     const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -246,8 +271,6 @@ export const AuthService = {
 
      // 2. Handle Password Update (Limitation)
      if (updates.newPassword) {
-         // Client-side admins cannot update other users' passwords directly without Service Role key.
-         // We return a specific warning.
          return { 
              success: true, 
              error: "Datos actualizados, pero la contraseña no se cambió. El usuario debe usar 'Olvidé mi contraseña' o cambiarla desde su perfil." 

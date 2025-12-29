@@ -70,10 +70,10 @@ class DataService {
   }
 
   public getSetupSQL(): string {
-    return `-- INSTRUCCIONES:
--- 1. Ve a https://supabase.com/dashboard
--- 2. Entra en tu proyecto y ve a "SQL Editor"
--- 3. Crea una "New Query", pega este código y dale a "Run"
+    return `-- INSTRUCCIONES CRÍTICAS PARA QUE FUNCIONE EL REGISTRO:
+-- 1. Copia TODO este bloque.
+-- 2. Ve al Dashboard de Supabase -> SQL Editor.
+-- 3. Pega y ejecuta (Run).
 
 -- === TABLAS PRINCIPALES ===
 
@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
 -- === AUTOMATIZACIÓN (TRIGGERS) ===
+-- Este trigger es crucial para crear el perfil automáticamente si la app falla.
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 BEGIN
@@ -152,7 +153,6 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- === TIEMPO REAL (REPLICACIÓN) ===
--- Asegura que los eventos UPDATE/DELETE envíen datos completos
 ALTER TABLE public.players REPLICA IDENTITY FULL;
 ALTER TABLE public.notes REPLICA IDENTITY FULL;
 ALTER TABLE public.profiles REPLICA IDENTITY FULL;
@@ -168,7 +168,7 @@ ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
--- Políticas permisivas para asegurar que funcione la escritura
+-- Políticas permisivas (Necesarias para que la app pueda auto-repararse)
 DROP POLICY IF EXISTS "Acceso total jugadores" ON public.players;
 CREATE POLICY "Acceso total jugadores" ON public.players FOR ALL USING (true) WITH CHECK (true);
 
@@ -176,6 +176,7 @@ DROP POLICY IF EXISTS "Acceso total notas" ON public.notes;
 CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Acceso total perfiles" ON public.profiles;
+-- Permitir acceso público a profiles para evitar bloqueos en el registro
 CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Acceso total config" ON public.app_config;
