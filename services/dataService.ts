@@ -76,7 +76,8 @@ class DataService {
 -- 2. Entra en tu proyecto y ve a "SQL Editor"
 -- 3. Crea una "New Query", pega este código y dale a "Run"
 
--- CREAR TABLA DE JUGADORES
+-- === TABLAS PRINCIPALES ===
+
 CREATE TABLE IF NOT EXISTS public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -97,7 +98,6 @@ CREATE TABLE IF NOT EXISTS public.players (
   nutrition JSONB DEFAULT '{}'::jsonb
 );
 
--- CREAR TABLA DE NOTAS
 CREATE TABLE IF NOT EXISTS public.notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   player_id UUID REFERENCES public.players(id) ON DELETE CASCADE,
@@ -111,7 +111,6 @@ CREATE TABLE IF NOT EXISTS public.notes (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- CREAR TABLA DE PERFILES (USUARIOS)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT,
@@ -123,7 +122,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT
 );
 
--- CREAR TABLA DE CONFIGURACIÓN
 CREATE TABLE IF NOT EXISTS public.app_config (
   id INTEGER PRIMARY KEY,
   app_name TEXT DEFAULT 'LA SQUADRA',
@@ -133,22 +131,52 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 -- INSERTAR CONFIGURACIÓN INICIAL
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
--- HABILITAR TIEMPO REAL (REALTIME)
+-- === AUTOMATIZACIÓN (TRIGGERS) ===
+-- Esta función crea automáticamente un perfil público cuando un usuario se registra
+-- Esto es una red de seguridad si el registro desde la app falla en el paso 2
+
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, name, email, role)
+  VALUES (
+    new.id, 
+    COALESCE(new.raw_user_meta_data->>'name', 'Nuevo Usuario'),
+    new.email,
+    'scout'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Eliminar trigger si existe para recrearlo
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Crear el trigger
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- === TIEMPO REAL ===
 ALTER PUBLICATION supabase_realtime ADD TABLE public.players;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notes;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.app_config;
 
--- HABILITAR RLS Y POLÍTICAS DE ACCESO PÚBLICO (PARA DESARROLLO)
+-- === POLÍTICAS DE SEGURIDAD (RLS) ===
+-- Habilitar RLS
 ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acceso total jugadores" ON public.players FOR ALL USING (true) WITH CHECK (true);
-
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
-
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+
+-- Políticas permisivas para desarrollo (Permiten lectura/escritura a usuarios autenticados y anónimos si se usa la clave pública)
+-- NOTA: En producción, deberías restringir esto.
+
+CREATE POLICY "Acceso total jugadores" ON public.players FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);`;
   }
 

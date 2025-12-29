@@ -1,3 +1,4 @@
+
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { User } from '../types';
@@ -85,6 +86,24 @@ export const AuthService = {
     });
 
     if (error) return { success: false, error: error.message };
+
+    // 2. CRITICAL FIX: Manually insert into profiles table immediately
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          id: data.user.id,
+          name: name,
+          email: email,
+          role: 'scout', // Default role
+          organization: '',
+        }
+      ]);
+
+      if (profileError) {
+        console.error("Error creating profile record:", profileError);
+        // We continue because the auth user was created, but log the error
+      }
+    }
 
     return { success: true };
   },
@@ -185,20 +204,20 @@ export const AuthService = {
 
     if (!newUserId) return { success: false, error: "No se pudo obtener el ID del usuario." };
 
-    // 2. Update the Profile with correct Role and Organization
-    // We use the main 'supabase' client here because we are logged in as Admin and have permission to update 'profiles'
-    // (Assuming RLS policies allow authenticated users to update profiles or 'Enable all access' is on)
+    // 2. FIX: Perform UPSERT (Insert or Update) into profiles
+    // Use upsert to be safe: if a trigger created it, we update it; if not, we create it.
     const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+            id: newUserId,
+            email: email,
             role: role,
             organization: organization,
-            name: name // Ensure name is synced
-        })
-        .eq('id', newUserId);
+            name: name
+        });
 
     if (profileError) {
-        return { success: false, error: "Usuario creado, pero falló la asignación de rol: " + profileError.message };
+        return { success: false, error: "Usuario creado en Auth, pero falló el registro en base de datos: " + profileError.message };
     }
 
     return { success: true };
