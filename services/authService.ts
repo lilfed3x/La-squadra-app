@@ -5,7 +5,12 @@ import { User } from '../types';
 
 // Helper to get env vars safely for the temp client
 const getEnv = (key: string) => {
-  if (import.meta && import.meta.env && import.meta.env[key]) {
+  // Try process.env first as it is explicitly defined in vite.config.ts
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
+  }
+  // Fallback to import.meta.env check
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
     return import.meta.env[key];
   }
   return '';
@@ -179,8 +184,9 @@ export const AuthService = {
 
     // TRICK: Create a temporary Supabase client with in-memory storage.
     // This prevents the current Admin session from being overwritten in localStorage when signing up the new user.
-    const tempSupabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://juqfdqjpqmmdxdlzrzwi.supabase.co';
-    const tempSupabaseKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_ZJEzAGTU455Za7HgVEz4NA_yJuDjo0p';
+    // Use the URL/Key from main client fallback if env vars missing
+    const tempSupabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://jzaijvrabivetbgzvohk.supabase.co';
+    const tempSupabaseKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6YWlqdnJhYml2ZXRiZ3p2b2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNDAzNjIsImV4cCI6MjA4MjYxNjM2Mn0.5qW6YhSgUKlWGsq5FD_PwOSUBpbIVLilCNx4znf7wk8';
 
     const tempClient = createClient(tempSupabaseUrl, tempSupabaseKey, {
         auth: {

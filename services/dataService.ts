@@ -28,7 +28,6 @@ const mapPlayerFromDB = (p: any): Player => ({
 const mapNoteFromDB = (n: any): Note => ({
   id: n.id,
   playerId: n.player_id,
-  // Fix: changed scout_id to scoutId to correctly match the Note interface definition in types.ts
   scoutId: n.scout_id,
   content: n.content || '',
   category: n.category,
@@ -132,9 +131,6 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
 -- === AUTOMATIZACIÓN (TRIGGERS) ===
--- Esta función crea automáticamente un perfil público cuando un usuario se registra
--- Esto es una red de seguridad si el registro desde la app falla en el paso 2
-
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 BEGIN
@@ -150,33 +146,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Eliminar trigger si existe para recrearlo
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
--- Crear el trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- === TIEMPO REAL ===
+-- === TIEMPO REAL (REPLICACIÓN) ===
+-- Asegura que los eventos UPDATE/DELETE envíen datos completos
+ALTER TABLE public.players REPLICA IDENTITY FULL;
+ALTER TABLE public.notes REPLICA IDENTITY FULL;
+ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+
 ALTER PUBLICATION supabase_realtime ADD TABLE public.players;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notes;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.app_config;
 
 -- === POLÍTICAS DE SEGURIDAD (RLS) ===
--- Habilitar RLS
 ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
--- Políticas permisivas para desarrollo (Permiten lectura/escritura a usuarios autenticados y anónimos si se usa la clave pública)
--- NOTA: En producción, deberías restringir esto.
-
+-- Políticas permisivas para asegurar que funcione la escritura
+DROP POLICY IF EXISTS "Acceso total jugadores" ON public.players;
 CREATE POLICY "Acceso total jugadores" ON public.players FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total notas" ON public.notes;
 CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total perfiles" ON public.profiles;
 CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total config" ON public.app_config;
 CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);`;
   }
 
@@ -186,13 +188,19 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
     await this.refreshAll();
     this.initialized = true;
 
-    // Configurar suscripciones realtime
+    // Configurar suscripciones realtime con logs para depuración
     supabase.channel('public:players')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => this.fetchPlayers())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+        console.log('Realtime Player Event:', payload.eventType);
+        this.fetchPlayers();
+      })
       .subscribe();
       
     supabase.channel('public:notes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => this.fetchNotes())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+        console.log('Realtime Note Event:', payload.eventType);
+        this.fetchNotes();
+      })
       .subscribe();
 
     supabase.channel('public:profiles')
@@ -221,14 +229,8 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
           .order('created_at', { ascending: false });
           
       if (error) {
-        console.warn('⚠️ Intento de carga de jugadores fallido:', error.message);
-        // Detección más amplia de errores de esquema
-        if (
-          error.message.includes("public.players") || 
-          error.message.includes("schema cache") || 
-          error.code === 'PGRST116' || 
-          error.code === '42P01'
-        ) {
+        console.warn('⚠️ Error fetching players:', error.message);
+        if (error.message.includes("does not exist") || error.code === '42P01') {
           this.dbError = "TABLAS_FALTANTES";
         } else {
           this.dbError = error.message;
@@ -243,7 +245,7 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
         this.notifyListeners();
       }
     } catch (err) {
-      console.error('Error fatal cargando jugadores:', err);
+      console.error('Fatal fetch error:', err);
     }
   }
 
@@ -303,6 +305,8 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
   public getUsers(): User[] { return this.users; }
   public getSettings(): AppSettings { return this.settings; }
 
+  // --- WRITE OPERATIONS (Modified for Immediate Updates) ---
+
   public async addPlayer(player: Player) {
     const dbPlayer = {
       name: player.name,
@@ -321,8 +325,15 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       physical: player.physical,
       nutrition: player.nutrition
     };
+    
     const { error } = await supabase.from('players').insert([dbPlayer]);
-    if (error) console.error("Error guardando jugador:", error.message);
+    
+    if (error) {
+        console.error("Error adding player:", error.message);
+        alert("Error al guardar jugador: " + error.message);
+    } else {
+        this.fetchPlayers(); // Immediate fetch
+    }
   }
 
   public async updatePlayer(player: Player) {
@@ -343,16 +354,32 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       physical: player.physical,
       nutrition: player.nutrition
     };
-    await supabase.from('players').update(dbPlayer).eq('id', player.id);
+    
+    const { error } = await supabase.from('players').update(dbPlayer).eq('id', player.id);
+    
+    if (error) {
+        console.error("Error updating player:", error.message);
+        alert("Error al actualizar: " + error.message);
+    } else {
+        this.fetchPlayers(); // Immediate fetch
+    }
   }
 
   public async deletePlayer(id: string) {
-    await supabase.from('notes').delete().eq('player_id', id);
-    await supabase.from('players').delete().eq('id', id);
+    const { error } = await supabase.from('players').delete().eq('id', id);
+    if (error) {
+        console.error("Error deleting player:", error.message);
+    } else {
+        this.fetchPlayers();
+        // Also clean up local notes related to this player immediately
+        this.notes = this.notes.filter(n => n.playerId !== id);
+        this.notifyListeners();
+    }
   }
 
   public async clearPlayers() {
     await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    this.fetchPlayers();
   }
 
   public async addNote(note: Note) {
@@ -366,34 +393,53 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       timestamp: note.timestamp,
       is_edited: false
     };
-    await supabase.from('notes').insert([dbNote]);
+    
+    const { error } = await supabase.from('notes').insert([dbNote]);
+    
+    if (error) {
+        console.error("Error adding note:", error.message);
+        alert("Error al guardar nota: " + error.message);
+    } else {
+        this.fetchNotes();
+    }
   }
 
   public async updateNote(note: Note) {
-    await supabase.from('notes').update({
+    const { error } = await supabase.from('notes').update({
        content: note.content,
        category: note.category,
        tags: note.tags,
        is_edited: true,
        attachments: note.attachments
     }).eq('id', note.id);
+
+    if (error) {
+        console.error("Error updating note:", error.message);
+    } else {
+        this.fetchNotes();
+    }
   }
 
   public async deleteNote(id: string) {
-    await supabase.from('notes').delete().eq('id', id);
+    const { error } = await supabase.from('notes').delete().eq('id', id);
+    if (error) console.error(error);
+    else this.fetchNotes();
   }
 
   public async deleteUser(id: string) {
-     await supabase.from('profiles').delete().eq('id', id);
-     this.fetchUsers();
+     const { error } = await supabase.from('profiles').delete().eq('id', id);
+     if (error) console.error(error);
+     else this.fetchUsers();
   }
 
   public async saveSettings(s: AppSettings) {
       this.settings = s;
       localStorage.setItem('lasquadra_app_settings', JSON.stringify(s));
       document.title = s.appName;
-      await supabase.from('app_config').upsert({ id: 1, app_name: s.appName, app_logo_url: s.appLogoUrl });
-      this.notifyListeners();
+      
+      const { error } = await supabase.from('app_config').upsert({ id: 1, app_name: s.appName, app_logo_url: s.appLogoUrl });
+      if (error) console.error("Error saving settings:", error);
+      else this.notifyListeners();
   }
   
   public subscribe(listener: () => void) {
