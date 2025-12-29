@@ -28,6 +28,7 @@ const mapPlayerFromDB = (p: any): Player => ({
 const mapNoteFromDB = (n: any): Note => ({
   id: n.id,
   playerId: n.player_id,
+  // Fix: changed scout_id to scoutId to correctly match the Note interface definition in types.ts
   scoutId: n.scout_id,
   content: n.content || '',
   category: n.category,
@@ -369,7 +370,7 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
   
   public subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => { this.listeners.delete(listener); };
   }
 
   private notifyListeners() {

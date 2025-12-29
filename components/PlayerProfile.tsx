@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Attachment, Note, NoteCategory, Player, User } from '../types';
 import { NoteEditor } from './NoteEditor';
@@ -388,7 +389,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                       <div>
                           <div className="flex items-center gap-3 mb-1">
                               <h1 className="text-3xl font-black text-white tracking-tight">{player.name}</h1>
-                              {player.nutrition?.injuryRisk === 'Alto' && <AlertCircle className="w-5 h-5 text-red-500" title="Riesgo de Lesión Alto" />}
+                              {player.physical?.injuryRisk === 'Alto' && <AlertCircle className="w-5 h-5 text-red-500" />}
                           </div>
                           <div className="flex items-center gap-4 text-scout-300 text-sm font-medium mb-3">
                               <span className="flex items-center gap-1.5"><Shirt className="w-4 h-4 text-scout-500"/> {player.team}</span>
