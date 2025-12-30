@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Attachment, Note, NoteCategory, Player, User, AppSettings } from './types';
 import { AuthService } from './services/authService';
 import { dataService } from './services/dataService'; 
@@ -41,6 +41,10 @@ const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const [playerFilter, setPlayerFilter] = useState('');
+  // Search Dropdown State
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
   
@@ -65,6 +69,19 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Click Outside Listener for Search Dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchContainerRef]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -209,7 +226,22 @@ const App: React.FC = () => {
     );
   }, [players, playerFilter]);
 
+  // Search Suggestions (Autocomplete)
+  const searchSuggestions = useMemo(() => {
+      if (!playerFilter.trim()) return [];
+      // Use filteredPlayers as source but limit results for dropdown
+      return filteredPlayers.slice(0, 5);
+  }, [filteredPlayers, playerFilter]);
+
+  const handleSearchResultClick = (playerId: string) => {
+      setActivePlayerId(playerId);
+      setViewMode('database');
+      setPlayerFilter(''); // Clear search to show full context, or keep it if preferred
+      setShowSearchSuggestions(false);
+  };
+
   const groupedPlayers = useMemo(() => {
+    // If filtering, we still show the filtered list structure
     const groups: Record<string, Player[]> = {};
     filteredPlayers.forEach(p => {
       const team = p.team || 'Agentes Libres';
@@ -315,29 +347,80 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full pb-16 md:pb-0">
         
         {/* HEADER (Simplified for Mobile) */}
-        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30">
-          <div className="flex items-center gap-3">
+        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30 gap-4">
+          <div className="flex items-center gap-3 shrink-0">
              {/* Logo in Header for Mobile only */}
              {isMobile && (
                  <div className="w-8 h-8 bg-scout-800 rounded-lg flex items-center justify-center border border-scout-700">
                      <Shield className="w-5 h-5 text-scout-gold" />
                  </div>
              )}
-             <h2 className="text-lg font-bold text-white truncate">
-                {viewMode === 'dashboard' ? 'Panel' : viewMode === 'profile_view' ? 'Perfil' : 'Base de Datos'}
+             <h2 className="text-lg font-bold text-white truncate hidden md:block">
+                {viewMode === 'dashboard' ? 'Panel de Control' : viewMode === 'profile_view' ? 'Mi Perfil' : 'Base de Datos'}
              </h2>
           </div>
           
-          <div className="flex items-center gap-2">
-             {viewMode === 'database' && (
-                 <div className="relative w-32 md:w-64">
+          <div className="flex-1 flex justify-end items-center gap-2 max-w-xl">
+             
+             {/* SEARCH BAR (GLOBAL) */}
+             <div className="relative w-full max-w-md" ref={searchContainerRef}>
+                <div className="relative">
                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
-                   <input type="text" value={playerFilter} onChange={(e) => setPlayerFilter(e.target.value)} placeholder="Buscar..." className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all placeholder:text-scout-500" />
-                 </div>
-             )}
+                   <input 
+                      type="text" 
+                      value={playerFilter} 
+                      onChange={(e) => {
+                         setPlayerFilter(e.target.value);
+                         setShowSearchSuggestions(true);
+                      }} 
+                      onFocus={() => {
+                        if (playerFilter) setShowSearchSuggestions(true);
+                      }}
+                      placeholder="Buscar jugador, equipo..." 
+                      className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all placeholder:text-scout-500" 
+                   />
+                   {playerFilter && (
+                     <button onClick={() => { setPlayerFilter(''); setShowSearchSuggestions(false); }} className="absolute right-3 top-2.5 text-scout-500 hover:text-white">
+                        <X className="w-3.5 h-3.5" />
+                     </button>
+                   )}
+                </div>
+
+                {/* SEARCH SUGGESTIONS DROPDOWN */}
+                {showSearchSuggestions && searchSuggestions.length > 0 && (
+                   <div className="absolute top-full left-0 right-0 mt-2 bg-scout-800 border border-scout-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                      <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
+                         {searchSuggestions.map(player => (
+                            <div 
+                              key={player.id} 
+                              onClick={() => handleSearchResultClick(player.id)}
+                              className="px-4 py-3 hover:bg-scout-700 cursor-pointer flex items-center gap-3 transition-colors border-b border-scout-700/50 last:border-0"
+                            >
+                               <img src={player.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover bg-scout-900 border border-scout-600" />
+                               <div className="flex-1 overflow-hidden">
+                                  <div className="text-sm font-bold text-white truncate">{player.name}</div>
+                                  <div className="text-[10px] text-scout-400 flex items-center gap-2">
+                                     <span>{player.team}</span>
+                                     <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+                                     <span>{player.position}</span>
+                                  </div>
+                               </div>
+                               <div className={`text-xs font-bold ${player.scoutRating >= 80 ? 'text-scout-gold' : 'text-scout-400'}`}>
+                                  {player.scoutRating}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                      <div className="px-3 py-2 bg-scout-900/50 text-[10px] text-center text-scout-500 border-t border-scout-700">
+                         Mostrando {searchSuggestions.length} coincidencias
+                      </div>
+                   </div>
+                )}
+             </div>
+
              {/* Mobile Settings Shortcut */}
              {isMobile && user.role === 'admin' && (
-                 <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 text-scout-400 hover:text-white">
+                 <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 text-scout-400 hover:text-white shrink-0">
                      <Settings className="w-5 h-5" />
                  </button>
              )}
@@ -347,7 +430,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-hidden relative">
           
           {/* DASHBOARD VIEW */}
-          {viewMode === 'dashboard' && <Dashboard players={filteredPlayers} />}
+          {viewMode === 'dashboard' && <Dashboard players={players} />}
           
           {/* PROFILE VIEW (Mobile Only for User Profile) */}
           {viewMode === 'profile_view' && (
