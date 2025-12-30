@@ -24,18 +24,12 @@ export interface User {
   approved?: boolean; // New approval field
 }
 
-export type BackupFrequency = 'never' | 'daily' | 'weekly' | 'monthly';
-
 export interface AppSettings {
   appName: string;
   appLogoUrl: string; // If empty, use default SVG
   // System Preferences
   launchAtStartup: boolean;
   minimizeToTray: boolean;
-  // Backup Preferences
-  backupFrequency: BackupFrequency;
-  lastBackupDate: string | null; // ISO Date string
-  googleDriveConnected?: boolean;
 }
 
 export interface Scout {
@@ -52,13 +46,6 @@ export interface Attachment {
   name: string;
 }
 
-export interface NoteComment {
-  id: string;
-  userId: string;
-  content: string;
-  timestamp: number;
-}
-
 export interface Note {
   id: string;
   playerId: string;
@@ -69,8 +56,6 @@ export interface Note {
   tags: string[];
   attachments: Attachment[];
   isEdited?: boolean;
-  comments?: NoteComment[]; // New: Threaded feedback
-  likes?: string[]; // New: List of user IDs who liked/acknowledged
 }
 
 export interface PlayerStats {

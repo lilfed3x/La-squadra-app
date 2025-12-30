@@ -6,10 +6,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   appName: 'LA SQUADRA',
   appLogoUrl: '', // Empty string implies default SVG
   launchAtStartup: false,
-  minimizeToTray: false,
-  backupFrequency: 'never',
-  lastBackupDate: null,
-  googleDriveConnected: false
+  minimizeToTray: false
 };
 
 export const SettingsService = {
