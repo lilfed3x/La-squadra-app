@@ -5,7 +5,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, ChevronDown, ChevronUp, ChevronRight, GripVertical, FileText, Activity as ActivityIcon, Apple, ArrowLeft, Building2, Calendar, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, X, FileDown, Download, Maximize2 } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, ChevronDown, ChevronUp, ChevronRight, GripVertical, FileText, Activity as ActivityIcon, Apple, ArrowLeft, Building2, Calendar, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, X, FileDown, Download, Maximize2, Youtube } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
@@ -14,7 +14,7 @@ interface PlayerProfileProps {
   player: Player;
   notes: Note[];
   onAddNote: (content: string, category: NoteCategory, tags: string[], attachments: Attachment[]) => void;
-  onEditPlayer: (player: Player) => void;
+  onEditPlayer: (player: Player, initialTab?: ModalTab, restrictMode?: boolean) => void;
   onPlayerUpdate: (player: Player) => void;
   onDeletePlayer: (id: string) => void;
   currentUser: User | null;
@@ -30,6 +30,12 @@ const STAT_LABELS: Record<string, string> = {
   dribbling: 'Regate',
   defending: 'Defensa',
   physical: 'Físico'
+};
+
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
 };
 
 // --- Extracted Components ---
@@ -305,6 +311,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
+  const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
   
   // Search state for notes
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
@@ -327,6 +334,12 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       if (window.confirm(`¿Estás seguro de eliminar a ${player.name}? Esta acción no se puede deshacer.`)) {
           onDeletePlayer(player.id);
       }
+  };
+
+  const openNoteEditorForEdit = (note: Note) => {
+      setNoteToEdit(note);
+      setIsNoteEditorOpen(true);
+      setActiveTab('notes');
   };
 
   return (
@@ -384,7 +397,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                              <FileDown className="w-5 h-5" />
                           </button>
                           <button 
-                            onClick={() => onEditPlayer(player)}
+                            onClick={() => onEditPlayer(player, 'general')}
                             className="p-2 bg-scout-800/50 hover:bg-scout-700 text-blue-400 hover:text-blue-300 rounded-lg border border-scout-600 transition-colors"
                             title="Editar Jugador"
                           >
@@ -505,7 +518,32 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-scout-800 text-scout-300 border border-scout-700">{note.category}</span>
                                           <span className="text-[10px] text-scout-500 ml-auto">{new Date(note.timestamp).toLocaleDateString()}</span>
                                       </div>
-                                      <p className="text-xs text-scout-200 line-clamp-3">{note.content}</p>
+                                      <p className="text-xs text-scout-200 line-clamp-3 mb-2">{note.content}</p>
+                                      
+                                      {/* Attachment Preview for Recent Notes */}
+                                      {note.attachments && note.attachments.length > 0 && (
+                                         <div className="flex gap-2 overflow-x-auto pt-1 pb-1">
+                                            {note.attachments.map(att => {
+                                                if (att.type === 'youtube') {
+                                                    const vidId = getYoutubeId(att.url);
+                                                    if (!vidId) return null;
+                                                    return (
+                                                        <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="relative block w-16 h-12 shrink-0 rounded overflow-hidden border border-scout-700 group cursor-pointer" onClick={(e) => { e.stopPropagation(); }}>
+                                                            <img src={`https://img.youtube.com/vi/${vidId}/0.jpg`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="YouTube" />
+                                                            <div className="absolute inset-0 flex items-center justify-center"><div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center"><Youtube className="w-2 h-2 text-white fill-current"/></div></div>
+                                                        </a>
+                                                    );
+                                                } else if (att.type === 'image') {
+                                                    return (
+                                                        <div key={att.id} className="w-12 h-12 shrink-0 rounded overflow-hidden border border-scout-700">
+                                                            <img src={att.url} className="w-full h-full object-cover" alt="Attachment" />
+                                                        </div>
+                                                    )
+                                                }
+                                                return null;
+                                            })}
+                                         </div>
+                                      )}
                                   </div>
                               ))}
                               {notes.length === 0 && (
@@ -532,7 +570,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               <div className="max-w-7xl mx-auto">
                  <div className="flex justify-between items-center mb-4">
                      <h2 className="text-xl font-bold text-white flex items-center gap-2"><ActivityIcon className="w-5 h-5 text-blue-400"/> Perfil Físico</h2>
-                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                     <button onClick={() => onEditPlayer(player, 'physical', true)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
                          <Edit className="w-3.5 h-3.5"/> Editar
                      </button>
                  </div>
@@ -545,7 +583,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               <div className="max-w-7xl mx-auto">
                  <div className="flex justify-between items-center mb-4">
                      <h2 className="text-xl font-bold text-white flex items-center gap-2"><Apple className="w-5 h-5 text-green-400"/> Informe Nutricional</h2>
-                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                     <button onClick={() => onEditPlayer(player, 'nutrition', true)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
                          <Edit className="w-3.5 h-3.5"/> Editar
                      </button>
                  </div>
@@ -558,7 +596,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               <div className="max-w-7xl mx-auto">
                  <div className="flex justify-between items-center mb-4">
                      <h2 className="text-xl font-bold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-purple-400"/> Detalles del Contrato</h2>
-                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                     <button onClick={() => onEditPlayer(player, 'contract', true)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
                          <Edit className="w-3.5 h-3.5"/> Editar
                      </button>
                  </div>
@@ -572,11 +610,35 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                   {/* Note Editor Collapsible */}
                   <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isNoteEditorOpen ? 'max-h-[500px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
                       <NoteEditor 
+                        initialData={noteToEdit ? {
+                            content: noteToEdit.content,
+                            category: noteToEdit.category,
+                            tags: noteToEdit.tags,
+                            attachments: noteToEdit.attachments
+                        } : undefined}
                         onSave={(content, category, tags, attachments) => {
-                            onAddNote(content, category, tags, attachments);
+                            if (noteToEdit) {
+                                // Update existing
+                                const updatedNote: Note = {
+                                    ...noteToEdit,
+                                    content,
+                                    category,
+                                    tags,
+                                    attachments,
+                                    isEdited: true
+                                };
+                                onEditNote(updatedNote);
+                            } else {
+                                // Create new
+                                onAddNote(content, category, tags, attachments);
+                            }
                             setIsNoteEditorOpen(false);
+                            setNoteToEdit(null);
                         }} 
-                        onCancel={() => setIsNoteEditorOpen(false)}
+                        onCancel={() => {
+                            setIsNoteEditorOpen(false);
+                            setNoteToEdit(null);
+                        }}
                       />
                   </div>
                   
@@ -584,7 +646,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                   {!isNoteEditorOpen && (
                       <div className="flex justify-end mb-6 animate-fadeIn">
                           <button 
-                            onClick={() => setIsNoteEditorOpen(true)}
+                            onClick={() => { setNoteToEdit(null); setIsNoteEditorOpen(true); }}
                             className="px-4 py-2 bg-scout-accent hover:bg-emerald-400 text-scout-900 font-bold rounded-lg shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all"
                           >
                               <Edit className="w-4 h-4" /> Nueva Nota
@@ -601,7 +663,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                           setSelectedCategory={setNoteCategoryFilter}
                           currentUser={currentUser}
                           allUsers={allUsers}
-                          onEditNote={onEditNote}
+                          onEditNote={openNoteEditorForEdit}
                           onDeleteNote={onDeleteNote}
                       />
                   </div>

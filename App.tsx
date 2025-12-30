@@ -8,7 +8,7 @@ import { exportPlayersToExcel } from './services/exportService';
 import { AuthPage } from './components/AuthPage';
 import { PlayerCard } from './components/PlayerCard';
 import { PlayerProfile } from './components/PlayerProfile';
-import { PlayerFormModal } from './components/PlayerFormModal';
+import { PlayerFormModal, ModalTab } from './components/PlayerFormModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ProfileModal } from './components/ProfileModal';
 import { Dashboard } from './components/Dashboard';
@@ -31,8 +31,13 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [isPlayerListOpen, setIsPlayerListOpen] = useState(true);
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
+  
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [modalInitialTab, setModalInitialTab] = useState<ModalTab>('general');
+  const [modalRestrictToTab, setModalRestrictToTab] = useState(false);
+
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [dbError, setDbError] = useState<string | null>(dataService.dbError);
   const [copied, setCopied] = useState(false);
@@ -147,8 +152,20 @@ const App: React.FC = () => {
     if (activePlayerId === id && remaining.length > 0) setActivePlayerId(remaining[0].id);
   };
 
-  const openAddModal = () => { setEditingPlayer(null); setIsModalOpen(true); };
-  const openEditModal = (player: Player) => { setEditingPlayer(player); setIsModalOpen(true); };
+  const openAddModal = () => { 
+    setEditingPlayer(null); 
+    setModalInitialTab('general');
+    setModalRestrictToTab(false);
+    setIsModalOpen(true); 
+  };
+
+  const openEditModal = (player: Player, initialTab: ModalTab = 'general', restrictMode: boolean = false) => { 
+    setEditingPlayer(player); 
+    setModalInitialTab(initialTab);
+    setModalRestrictToTab(restrictMode);
+    setIsModalOpen(true); 
+  };
+
   const handleExportAll = () => exportPlayersToExcel(filteredPlayers);
 
   const filteredPlayers = useMemo(() => {
@@ -344,13 +361,33 @@ const App: React.FC = () => {
                    </div>
                 </div>
                 <div className="flex-1 bg-[#0b1120] overflow-hidden">
-                   {activePlayer ? <PlayerProfile player={activePlayer} notes={activeNotes} onAddNote={handleAddNote} onEditPlayer={openEditModal} onPlayerUpdate={handleUpdatePlayer} onDeletePlayer={handleDeletePlayer} currentUser={user} allUsers={dataService.getUsers()} onEditNote={handleEditNote} onDeleteNote={handleDeleteNote} /> : <div className="flex flex-col items-center justify-center h-full text-scout-500"><p>Ningún jugador seleccionado</p></div>}
+                   {activePlayer ? (
+                      <PlayerProfile 
+                        player={activePlayer} 
+                        notes={activeNotes} 
+                        onAddNote={handleAddNote} 
+                        onEditPlayer={openEditModal} 
+                        onPlayerUpdate={handleUpdatePlayer} 
+                        onDeletePlayer={handleDeletePlayer} 
+                        currentUser={user} 
+                        allUsers={dataService.getUsers()} 
+                        onEditNote={handleEditNote} 
+                        onDeleteNote={handleDeleteNote} 
+                      />
+                   ) : <div className="flex flex-col items-center justify-center h-full text-scout-500"><p>Ningún jugador seleccionado</p></div>}
                 </div>
              </div>
           )}
         </main>
       </div>
-      <PlayerFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSavePlayer} initialData={editingPlayer} />
+      <PlayerFormModal 
+         isOpen={isModalOpen} 
+         onClose={() => setIsModalOpen(false)} 
+         onSave={handleSavePlayer} 
+         initialData={editingPlayer}
+         initialTab={modalInitialTab}
+         restrictToTab={modalRestrictToTab}
+      />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appSettings} onSave={handleSaveSettings} currentUser={user} />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} currentUser={user} onSave={handleUpdateProfile} />
     </div>
