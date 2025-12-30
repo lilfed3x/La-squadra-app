@@ -5,7 +5,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, ChevronDown, ChevronUp, ChevronRight, GripVertical, FileText, Activity as ActivityIcon, Apple, ArrowLeft, Building2, Calendar, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, X, FileDown, Download, Maximize2, Youtube } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, ChevronDown, ChevronUp, ChevronRight, GripVertical, FileText, Activity as ActivityIcon, Apple, ArrowLeft, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, X, FileDown, Download, Maximize2, Youtube } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
@@ -21,6 +21,7 @@ interface PlayerProfileProps {
   allUsers: User[];
   onEditNote: (note: Note) => void;
   onDeleteNote: (noteId: string) => void;
+  onBack?: () => void; // New prop for Mobile Navigation
 }
 
 const STAT_LABELS: Record<string, string> = {
@@ -51,26 +52,26 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
   const historyData = player.nutrition?.bodyCompositionHistory || [];
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn pb-6">
          {/* Top Stats Row */}
-         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700 relative overflow-hidden group">
                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><TrendingUp className="w-12 h-12 text-emerald-400" /></div>
                <div className="text-xs text-scout-500 uppercase font-bold tracking-wider mb-1">Estado de Peso</div>
                <div className="flex items-center gap-2">
-                  <div className={`text-2xl font-bold ${player.nutrition?.weightStatus === 'Óptimo' ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  <div className={`text-lg md:text-2xl font-bold ${player.nutrition?.weightStatus === 'Óptimo' ? 'text-emerald-400' : 'text-yellow-400'}`}>
                      {player.nutrition?.weightStatus}
                   </div>
                   {player.nutrition?.weightStatus === 'Óptimo' && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
                </div>
-               <div className="text-xs text-scout-400 mt-1">Último: {player.nutrition?.lastCheckup}</div>
+               <div className="text-[10px] md:text-xs text-scout-400 mt-1">Último: {player.nutrition?.lastCheckup}</div>
             </div>
 
             <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700 relative overflow-hidden group">
                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><ActivityIcon className="w-12 h-12 text-blue-400" /></div>
                <div className="text-xs text-scout-500 uppercase font-bold tracking-wider mb-1">Hidratación</div>
                <div className="flex items-center gap-2">
-                  <div className="text-2xl font-bold text-blue-400">{player.nutrition?.hydrationLevel}%</div>
+                  <div className="text-lg md:text-2xl font-bold text-blue-400">{player.nutrition?.hydrationLevel}%</div>
                </div>
                <div className="w-full bg-scout-800 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div className="h-full bg-blue-500" style={{ width: `${player.nutrition?.hydrationLevel}%` }}></div>
@@ -80,8 +81,8 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
             <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700 relative overflow-hidden group">
                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><PieChartIcon className="w-12 h-12 text-orange-400" /></div>
                <div className="text-xs text-scout-500 uppercase font-bold tracking-wider mb-1">Calorías Diarias</div>
-               <div className="text-2xl font-bold text-orange-400">{player.nutrition?.dailyCalories} <span className="text-sm text-scout-500 font-normal">kcal</span></div>
-               <div className="text-xs text-scout-400 mt-1">Objetivo de mantenimiento</div>
+               <div className="text-lg md:text-2xl font-bold text-orange-400">{player.nutrition?.dailyCalories} <span className="text-sm text-scout-500 font-normal">kcal</span></div>
+               <div className="text-[10px] md:text-xs text-scout-400 mt-1">Objetivo de mantenimiento</div>
             </div>
 
             <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700 relative overflow-hidden group">
@@ -194,7 +195,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
 };
 
 const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => (
-  <div className="space-y-6 animate-fadeIn">
+  <div className="space-y-6 animate-fadeIn pb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-scout-900/50 p-5 rounded-xl border border-scout-700 flex flex-col items-center justify-center text-center">
                <div className="text-xs text-scout-500 uppercase font-bold tracking-wider mb-2">Nivel de Fatiga</div>
@@ -228,7 +229,7 @@ const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => (
 );
 
 const ContractContent: React.FC<{ player: Player }> = ({ player }) => (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="bg-scout-900/50 p-6 rounded-xl border border-scout-700 relative overflow-hidden">
                  <div className="absolute top-0 right-0 p-4 opacity-10"><Briefcase className="w-16 h-16 text-purple-400"/></div>
@@ -305,7 +306,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   currentUser,
   allUsers,
   onEditNote,
-  onDeleteNote
+  onDeleteNote,
+  onBack 
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'ai-report' | 'physical' | 'nutrition' | 'contract'>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
@@ -344,41 +346,51 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-[#0b1120] relative">
-      {/* Header Banner - Increased height from h-48 to h-64 to fix overlap */}
-      <div className="relative h-64 bg-gradient-to-r from-scout-900 to-slate-900 border-b border-scout-700 shrink-0">
+      {/* Header Banner - Responsive height */}
+      <div className="relative min-h-[220px] md:h-64 bg-gradient-to-r from-scout-900 to-slate-900 border-b border-scout-700 shrink-0 flex flex-col justify-end">
           {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
           
-          {/* Added pb-12 to push content up optically */}
-          <div className="absolute inset-0 flex items-center px-8 gap-6 pb-12">
-              <div className="relative group">
-                  <div className="w-32 h-32 rounded-full border-4 border-scout-800 shadow-2xl overflow-hidden bg-scout-700 relative z-10">
+          {/* Back Button for Mobile */}
+          {onBack && (
+            <button onClick={onBack} className="absolute top-4 left-4 z-30 p-2 bg-scout-800/80 rounded-full text-white md:hidden">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          
+          {/* Content Wrapper */}
+          <div className="relative px-6 pb-14 pt-6 md:pt-0 flex flex-col md:flex-row items-center md:items-end gap-6 z-10">
+              
+              {/* Avatar + Rating */}
+              <div className="relative group shrink-0">
+                  <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-scout-800 shadow-2xl overflow-hidden bg-scout-700 relative z-10">
                       <img src={player.imageUrl} alt={player.name} className="w-full h-full object-cover" />
                   </div>
-                  <div className="absolute -bottom-2 -right-2 z-20 bg-scout-900 rounded-full p-1 border border-scout-700">
+                  <div className="absolute -bottom-1 -right-1 md:-bottom-2 md:-right-2 z-20 bg-scout-900 rounded-full p-1 border border-scout-700">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center text-scout-900 font-bold text-xs shadow-lg">
                           {player.scoutRating}
                       </div>
                   </div>
               </div>
 
-              <div className="flex-1 z-10 pt-4">
-                  <div className="flex justify-between items-start">
+              {/* Info Block */}
+              <div className="flex-1 w-full text-center md:text-left">
+                  <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
                       <div>
-                          <div className="flex items-center gap-3 mb-1">
-                              <h1 className="text-3xl font-black text-white tracking-tight">{player.name}</h1>
+                          <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+                              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">{player.name}</h1>
                               {player.physical?.injuryRisk === 'Alto' && <AlertCircle className="w-5 h-5 text-red-500" />}
                           </div>
-                          <div className="flex items-center gap-4 text-scout-300 text-sm font-medium mb-3">
+                          <div className="flex flex-wrap justify-center md:justify-start items-center gap-x-4 gap-y-2 text-scout-300 text-sm font-medium mb-3">
                               <span className="flex items-center gap-1.5"><Shirt className="w-4 h-4 text-scout-500"/> {player.team}</span>
-                              <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+                              <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
                               <span>{player.position}</span>
-                              <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+                              <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
                               <span>{player.age} Años</span>
-                              <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+                              <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
                               <span>{player.country}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex justify-center md:justify-start items-center gap-2">
                              <span className="px-2 py-1 bg-scout-800 border border-scout-600 rounded text-xs text-scout-300 font-mono">
                                 {player.height} / {player.weight}
                              </span>
@@ -388,7 +400,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                           </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mt-2 md:mt-0">
                           <button 
                             onClick={() => exportPlayerProfileToPDF(player, notes)}
                             className="p-2 bg-scout-800/50 hover:bg-scout-700 text-scout-300 hover:text-white rounded-lg border border-scout-600 transition-colors"
@@ -415,13 +427,13 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="absolute bottom-0 left-0 right-0 px-8 flex gap-6 z-10 overflow-x-auto custom-scrollbar">
+          {/* Navigation Tabs - Scrollable */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 flex gap-6 z-10 overflow-x-auto custom-scrollbar no-scrollbar-mobile">
               <button 
                 onClick={() => setActiveTab('overview')}
                 className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'overview' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
               >
-                  <ActivityIcon className="w-4 h-4" /> Visión General
+                  <ActivityIcon className="w-4 h-4" /> <span className="hidden sm:inline">Visión General</span><span className="sm:hidden">General</span>
               </button>
               
               <button 
@@ -462,7 +474,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-20 md:pb-6">
           
           {/* TAB: OVERVIEW */}
           {activeTab === 'overview' && (
@@ -496,7 +508,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
                           <div className="bg-scout-800 rounded-xl border border-scout-700 p-4 shadow-lg flex flex-col">
                               <h3 className="text-xs uppercase font-bold text-scout-400 tracking-wider mb-4">Mapa de Calor Táctico</h3>
-                              <div className="flex-1 relative rounded-lg overflow-hidden bg-emerald-900/20 border border-white/5 p-2">
+                              <div className="flex-1 relative rounded-lg overflow-hidden bg-emerald-900/20 border border-white/5 p-2 min-h-[250px]">
                                   <TacticalPitch position={player.position} />
                               </div>
                           </div>
@@ -606,9 +618,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
           {/* TAB: NOTES */}
           {activeTab === 'notes' && (
-              <div className="h-full flex flex-col max-w-5xl mx-auto">
+              <div className="h-full flex flex-col max-w-5xl mx-auto pb-6">
                   {/* Note Editor Collapsible */}
-                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isNoteEditorOpen ? 'max-h-[500px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isNoteEditorOpen ? 'max-h-[800px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
                       <NoteEditor 
                         initialData={noteToEdit ? {
                             content: noteToEdit.content,
@@ -672,9 +684,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
           {/* TAB: AI REPORT */}
           {activeTab === 'ai-report' && (
-              <div className="max-w-4xl mx-auto h-full flex flex-col">
+              <div className="max-w-4xl mx-auto h-full flex flex-col pb-6">
                   {/* Controls */}
-                  <div className="flex justify-between items-center mb-6 p-4 bg-scout-800 rounded-xl border border-scout-700">
+                  <div className="flex flex-col md:flex-row justify-between items-center mb-6 p-4 bg-scout-800 rounded-xl border border-scout-700 gap-4">
                       <div>
                           <h3 className="font-bold text-white text-lg flex items-center gap-2">
                               <BrainCircuit className="w-6 h-6 text-purple-400" /> 
@@ -685,7 +697,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                       <button 
                         onClick={handleGenerateReport} 
                         disabled={isGeneratingReport}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                           {isGeneratingReport ? (
                               <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Generando...</>
@@ -696,7 +708,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                   </div>
 
                   {/* Report Content */}
-                  <div className="flex-1 bg-scout-800 rounded-xl border border-scout-700 p-8 overflow-y-auto custom-scrollbar shadow-2xl relative">
+                  <div className="flex-1 bg-scout-800 rounded-xl border border-scout-700 p-6 md:p-8 overflow-y-auto custom-scrollbar shadow-2xl relative min-h-[300px]">
                       {aiReport ? (
                           <div className="animate-fadeIn">
                               <div className="absolute top-4 right-4 flex gap-2">
@@ -720,9 +732,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                               </div>
                           </div>
                       ) : (
-                          <div className="h-full flex flex-col items-center justify-center text-scout-500 opacity-50">
+                          <div className="h-full flex flex-col items-center justify-center text-scout-500 opacity-50 py-12">
                               <BrainCircuit className="w-24 h-24 mb-4 stroke-1" />
-                              <p>Haz clic en "Generar Informe" para comenzar el análisis.</p>
+                              <p className="text-center">Haz clic en "Generar Informe" para comenzar el análisis.</p>
                           </div>
                       )}
                   </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Player } from '../types';
 import { 
@@ -50,18 +51,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ players }) => {
   })).sort((a,b) => b.goals - a.goals);
 
   return (
-    <div className="p-6 h-full overflow-y-auto custom-scrollbar space-y-6">
-      <h1 className="text-2xl font-bold text-white mb-6">Panel de Análisis del Equipo</h1>
+    <div className="p-4 md:p-6 h-full overflow-y-auto custom-scrollbar space-y-6 pb-20 md:pb-6">
+      <h1 className="text-xl md:text-2xl font-bold text-white mb-6">Panel de Análisis del Equipo</h1>
 
       {players.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-96 text-scout-500 border border-dashed border-scout-700 rounded-xl bg-scout-800/30">
+        <div className="flex flex-col items-center justify-center h-64 md:h-96 text-scout-500 border border-dashed border-scout-700 rounded-xl bg-scout-800/30 p-6 text-center">
             <p className="text-lg font-medium text-scout-300">No hay datos de jugadores disponibles</p>
             <p className="text-sm mt-2">Ve a la sección Base de Datos para añadir jugadores.</p>
         </div>
       ) : (
         <>
           {/* Top Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg">
               <p className="text-scout-400 text-xs font-medium uppercase tracking-wider mb-1">Valor Total de Plantilla</p>
               <div className="text-3xl font-bold text-white mb-2">€{totalValue}M</div>
@@ -90,10 +91,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ players }) => {
           </div>
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-96">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Squad Position Distribution */}
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col h-80 md:h-96">
               <h3 className="text-sm font-bold text-white mb-4">Distribución de Posiciones</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -127,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ players }) => {
             </div>
 
             {/* Top Goal Contributors */}
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col h-80 md:h-96">
               <h3 className="text-sm font-bold text-white mb-4">Jugadores Clave (Estadísticas Proyectadas)</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">

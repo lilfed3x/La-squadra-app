@@ -12,7 +12,7 @@ import { PlayerFormModal, ModalTab } from './components/PlayerFormModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ProfileModal } from './components/ProfileModal';
 import { Dashboard } from './components/Dashboard';
-import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, CloudLightning, Shield, Download, CloudOff, AlertTriangle, Copy, Check, RefreshCw } from 'lucide-react';
+import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, CloudLightning, Shield, Download, CloudOff, AlertTriangle, Copy, Check, RefreshCw, X } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 type ViewMode = 'dashboard' | 'database';
@@ -36,10 +36,13 @@ const App: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activePlayerId, setActivePlayerId] = useState<string>('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Responsive State
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Default closed on mobile logic
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   const [playerFilter, setPlayerFilter] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
-  const [isPlayerListOpen, setIsPlayerListOpen] = useState(true);
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
   
   // Modal State
@@ -52,6 +55,25 @@ const App: React.FC = () => {
   const [dbError, setDbError] = useState<string | null>(dataService.dbError);
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Resize Listener for Responsive Logic
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setSidebarOpen(true); // Always open sidebar on desktop by default
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    
+    // Initial check
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const initApp = async () => {
@@ -67,7 +89,11 @@ const App: React.FC = () => {
       setDbError(dataService.dbError);
       
       const initialPlayers = dataService.getPlayers();
-      if (initialPlayers.length > 0) setActivePlayerId(initialPlayers[0].id);
+      // On desktop, select first player automatically. On mobile, start with none (to show list).
+      if (initialPlayers.length > 0 && window.innerWidth >= 768) {
+         setActivePlayerId(initialPlayers[0].id);
+      }
+
       setIsLoadingAuth(false);
     };
     initApp();
@@ -106,11 +132,8 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     AuthService.logout();
-    // En modo dev, logout podría no "sacarte" porque el estado inicial es un usuario dummy.
-    // Para simular logout real, ponemos null, pero al recargar volverá el dummy.
     setUser(null);
     setShowUserMenu(false);
-    // Recargar página para forzar reset de estado en este modo híbrido
     window.location.reload();
   };
 
@@ -166,7 +189,9 @@ const App: React.FC = () => {
   const handleDeletePlayer = (id: string) => {
     dataService.deletePlayer(id); 
     const remaining = players.filter(p => p.id !== id);
-    if (activePlayerId === id && remaining.length > 0) setActivePlayerId(remaining[0].id);
+    if (activePlayerId === id) {
+        setActivePlayerId(remaining.length > 0 && !isMobile ? remaining[0].id : '');
+    }
   };
 
   const openAddModal = () => { 
@@ -209,14 +234,24 @@ const App: React.FC = () => {
   const sortedTeams = Object.keys(groupedPlayers).sort();
   const toggleTeam = (team: string) => setExpandedTeams(prev => ({ ...prev, [team]: !prev[team] }));
 
-  const togglePlayerList = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (viewMode === 'database') {
-      setIsPlayerListOpen(!isPlayerListOpen);
-    } else {
-      setViewMode('database');
-      setIsPlayerListOpen(true);
-    }
+  // Navigation Logic
+  const handleNavClick = (mode: ViewMode) => {
+      setViewMode(mode);
+      if (isMobile) setSidebarOpen(false);
+      // If switching to database on mobile, reset selection to show list
+      if (mode === 'database' && isMobile) setActivePlayerId(''); 
+  };
+
+  const handlePlayerSelect = (id: string) => {
+      setActivePlayerId(id);
+      if (isMobile) {
+          // In mobile, selection implies going to details view
+          // ViewMode stays database, but we conditionally render details
+      }
+  };
+
+  const handleBackToList = () => {
+      setActivePlayerId('');
   };
 
   if (isLoadingAuth) {
@@ -227,7 +262,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Pantalla de error de base de datos mejorada
   if (dbError === "TABLAS_FALTANTES") {
     return (
       <div className="h-screen bg-[#0f172a] flex items-center justify-center p-6 overflow-hidden">
@@ -276,34 +310,53 @@ const App: React.FC = () => {
     );
   }
 
-  // BYPASS: No mostramos AuthPage si ya hay un usuario dummy
   if (!user) return <AuthPage onLoginSuccess={handleLoginSuccess} appSettings={appSettings} />;
 
   return (
     <div className="flex h-screen bg-scout-900 text-scout-100 font-sans overflow-hidden">
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-scout-900 border-r border-scout-800 transition-all duration-300 flex flex-col flex-shrink-0 relative overflow-hidden`}>
-        <div className="p-6 flex flex-col items-center gap-3 mb-2 cursor-pointer hover:opacity-80 transition-opacity text-center" onClick={() => setViewMode('dashboard')}>
+      
+      {/* MOBILE OVERLAY */}
+      {isMobile && sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm animate-fadeIn"
+            onClick={() => setSidebarOpen(false)}
+          />
+      )}
+
+      {/* SIDEBAR (Responsive) */}
+      <div className={`
+        fixed md:relative z-50 h-full bg-scout-900 border-r border-scout-800 
+        transition-transform duration-300 ease-in-out flex flex-col shrink-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${sidebarOpen ? 'w-64' : 'w-0 md:w-64'} 
+      `}>
+        {/* Mobile Close Button */}
+        <button 
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden absolute top-4 right-4 text-scout-400 hover:text-white"
+        >
+            <X className="w-6 h-6" />
+        </button>
+
+        <div className="p-6 flex flex-col items-center gap-3 mb-2 cursor-pointer hover:opacity-80 transition-opacity text-center mt-6 md:mt-0" onClick={() => handleNavClick('dashboard')}>
            <div className="w-16 h-16 bg-gradient-to-br from-scout-900 to-black rounded-xl flex items-center justify-center shadow-lg border border-scout-gold/30 overflow-hidden">
              {appSettings.appLogoUrl ? <img src={appSettings.appLogoUrl} alt="App Logo" className="w-full h-full object-cover" /> : <svg viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10"><path d="M4 21h16" /><path d="M5 21V10a7 7 0 0 1 14 0v11" /><path d="M5 10l7-5 7 5" /><path d="M8 21V12a4 4 0 0 1 8 0v9" /><path d="M12 2v3" /></svg>}
            </div>
-           <h1 className="font-black text-2xl tracking-widest text-white uppercase break-words w-full">{appSettings.appName}</h1>
+           {sidebarOpen && <h1 className="font-black text-2xl tracking-widest text-white uppercase break-words w-full animate-fadeIn">{appSettings.appName}</h1>}
         </div>
 
-        <div className="px-4 space-y-2 mt-4">
-           <button onClick={() => setViewMode('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${viewMode === 'dashboard' ? 'bg-scout-800 text-scout-gold border border-scout-700' : 'text-scout-400 hover:text-white hover:bg-scout-800/50'}`}>
-             <LayoutDashboard className="w-5 h-5" /> Panel
+        <div className="px-4 space-y-2 mt-4 flex-1 overflow-y-auto">
+           <button onClick={() => handleNavClick('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${viewMode === 'dashboard' ? 'bg-scout-800 text-scout-gold border border-scout-700' : 'text-scout-400 hover:text-white hover:bg-scout-800/50'}`}>
+             <LayoutDashboard className="w-5 h-5 shrink-0" /> {sidebarOpen && <span>Panel</span>}
            </button>
-           <div className={`group w-full flex items-center rounded-lg transition-all ${viewMode === 'database' ? 'bg-scout-800 border border-scout-700' : 'hover:bg-scout-800/50'}`}>
-             <button onClick={() => { setViewMode('database'); if (!isPlayerListOpen) setIsPlayerListOpen(true); }} className={`flex-1 flex items-center gap-3 px-4 py-3 text-sm font-medium text-left outline-none ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-400 group-hover:text-white'}`}>
-               <Users className="w-5 h-5" /> Base de Datos
-             </button>
-             <button onClick={togglePlayerList} className={`mr-2 p-1.5 rounded-md hover:bg-scout-700/50 transition-colors ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-400 group-hover:text-white'}`}><Menu className="w-4 h-4" /></button>
-           </div>
+           <button onClick={() => handleNavClick('database')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${viewMode === 'database' ? 'bg-scout-800 text-scout-gold border border-scout-700' : 'text-scout-400 hover:text-white hover:bg-scout-800/50'}`}>
+               <Users className="w-5 h-5 shrink-0" /> {sidebarOpen && <span>Base de Datos</span>}
+           </button>
         </div>
         
         <div className="mt-auto border-t border-scout-800 p-4 relative">
            {showUserMenu && (
-             <div className="absolute bottom-full left-4 right-4 mb-2 bg-scout-800 border border-scout-700 rounded-xl shadow-xl overflow-hidden animate-fadeIn z-50">
+             <div className="absolute bottom-full left-4 right-4 mb-2 bg-scout-800 border border-scout-700 rounded-xl shadow-xl overflow-hidden animate-fadeIn z-50 min-w-[200px]">
                <div className="py-1">
                  <button onClick={() => { setIsProfileModalOpen(true); setShowUserMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs font-medium text-scout-200 hover:bg-scout-700 flex items-center gap-2 transition-colors"><UserIcon className="w-3.5 h-3.5" /> Perfil</button>
                  {user.role === 'admin' && <button onClick={() => { setIsSettingsModalOpen(true); setShowUserMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs font-medium text-scout-200 hover:bg-scout-700 flex items-center gap-2 transition-colors"><Settings className="w-3.5 h-3.5" /> Configuración</button>}
@@ -313,30 +366,41 @@ const App: React.FC = () => {
              </div>
            )}
            <div className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${showUserMenu ? 'bg-scout-800' : 'hover:bg-scout-800'}`} onClick={() => setShowUserMenu(!showUserMenu)}>
-             <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt={user.name} className="w-8 h-8 rounded-full border border-scout-600 object-cover" />
-             <div className="flex-1 overflow-hidden">
-               <p className="text-sm font-semibold truncate text-white">{user.name}</p>
-               <p className="text-[10px] text-scout-500 truncate">{user.email}</p>
-             </div>
-             <ChevronUp className={`w-4 h-4 text-scout-500 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+             <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt={user.name} className="w-8 h-8 rounded-full border border-scout-600 object-cover shrink-0" />
+             {sidebarOpen && (
+                 <div className="flex-1 overflow-hidden animate-fadeIn">
+                   <p className="text-sm font-semibold truncate text-white">{user.name}</p>
+                   <p className="text-[10px] text-scout-500 truncate">{user.email}</p>
+                 </div>
+             )}
+             {sidebarOpen && <ChevronUp className={`w-4 h-4 text-scout-500 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />}
            </div>
-           <div className="mt-3 px-2">
-             <div className={`flex items-center gap-2 text-sm font-medium ${isSupabaseConfigured ? 'text-scout-gold' : 'text-gray-500'}`}>
-                {isSupabaseConfigured ? <CloudLightning className="w-3 h-3 text-scout-gold animate-pulse" /> : <CloudOff className="w-3 h-3 text-gray-500" />}
-                <span className="text-xs">{isSupabaseConfigured ? 'Conectado' : 'Offline'}</span>
-             </div>
-           </div>
+           {sidebarOpen && (
+               <div className="mt-3 px-2 animate-fadeIn">
+                 <div className={`flex items-center gap-2 text-sm font-medium ${isSupabaseConfigured ? 'text-scout-gold' : 'text-gray-500'}`}>
+                    {isSupabaseConfigured ? <CloudLightning className="w-3 h-3 text-scout-gold animate-pulse" /> : <CloudOff className="w-3 h-3 text-gray-500" />}
+                    <span className="text-xs">{isSupabaseConfigured ? 'Conectado' : 'Offline'}</span>
+                 </div>
+               </div>
+           )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative">
-        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-6 justify-between shrink-0">
-          <div className="flex items-center gap-4">
-             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-scout-400 hover:text-white lg:hidden"><Menu className="w-6 h-6"/></button>
-             <h2 className="text-lg font-bold text-white">{viewMode === 'dashboard' ? 'Panel de Análisis' : 'Base de Datos'}</h2>
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full">
+        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0">
+          <div className="flex items-center gap-3 md:gap-4">
+             {/* Mobile Toggle */}
+             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-scout-400 hover:text-white md:hidden p-1">
+                 <Menu className="w-6 h-6"/>
+             </button>
+             <h2 className="text-lg font-bold text-white truncate">
+                {viewMode === 'dashboard' ? 'Panel de Análisis' : 'Base de Datos'}
+             </h2>
           </div>
           <div className="flex items-center gap-4">
-             <div className="relative hidden md:block w-64">
+             {/* Search: Hide on very small screens if needed, or make expandable. For now keep simple. */}
+             <div className="relative w-32 md:w-64">
                <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
                <input type="text" value={playerFilter} onChange={(e) => setPlayerFilter(e.target.value)} placeholder="Buscar..." className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all placeholder:text-scout-500" />
              </div>
@@ -345,10 +409,17 @@ const App: React.FC = () => {
 
         <main className="flex-1 overflow-hidden relative">
           {viewMode === 'dashboard' && <Dashboard players={filteredPlayers} />}
+          
           {viewMode === 'database' && (
-             <div className="flex h-full">
-                <div className={`${isPlayerListOpen ? 'w-72 border-r opacity-100' : 'w-0 border-none opacity-0'} bg-scout-900/30 border-scout-800 flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
-                   <div className="w-72 flex flex-col h-full min-w-[18rem]">
+             <div className="flex h-full relative">
+                
+                {/* LIST PANEL */}
+                {/* On mobile: Hidden if a player is selected. On desktop: Always visible. */}
+                <div className={`
+                    ${isMobile && activePlayerId ? 'hidden' : 'flex'}
+                    w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col transition-all duration-300
+                `}>
+                   <div className="w-full flex flex-col h-full">
                      <div className="p-4 border-b border-scout-800 flex items-center justify-between">
                         <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Jugadores ({filteredPlayers.length})</span>
                         <div className="flex gap-1">
@@ -368,7 +439,12 @@ const App: React.FC = () => {
                               {isExpanded && (
                                 <div className="space-y-1 pl-1 border-l-2 border-scout-800 ml-2">
                                   {groupedPlayers[team].map(player => (
-                                    <PlayerCard key={player.id} player={player} isActive={player.id === activePlayerId} onClick={() => setActivePlayerId(player.id)} />
+                                    <PlayerCard 
+                                        key={player.id} 
+                                        player={player} 
+                                        isActive={player.id === activePlayerId} 
+                                        onClick={() => handlePlayerSelect(player.id)} 
+                                    />
                                   ))}
                                 </div>
                               )}
@@ -378,7 +454,13 @@ const App: React.FC = () => {
                      </div>
                    </div>
                 </div>
-                <div className="flex-1 bg-[#0b1120] overflow-hidden">
+                
+                {/* DETAIL PANEL */}
+                {/* On mobile: Visible ONLY if player selected (Full width). On desktop: Always visible (Flex-1) */}
+                <div className={`
+                    ${isMobile && !activePlayerId ? 'hidden' : 'flex-1'}
+                    bg-[#0b1120] overflow-hidden absolute md:relative inset-0 md:inset-auto z-10 md:z-auto
+                `}>
                    {activePlayer ? (
                       <PlayerProfile 
                         player={activePlayer} 
@@ -390,9 +472,16 @@ const App: React.FC = () => {
                         currentUser={user} 
                         allUsers={dataService.getUsers()} 
                         onEditNote={handleEditNote} 
-                        onDeleteNote={handleDeleteNote} 
+                        onDeleteNote={handleDeleteNote}
+                        onBack={isMobile ? handleBackToList : undefined} 
                       />
-                   ) : <div className="flex flex-col items-center justify-center h-full text-scout-500"><p>Ningún jugador seleccionado</p></div>}
+                   ) : (
+                       // Empty state for desktop
+                       <div className="hidden md:flex flex-col items-center justify-center h-full text-scout-500">
+                           <Shield className="w-16 h-16 opacity-20 mb-4" />
+                           <p>Selecciona un jugador para ver detalles</p>
+                       </div>
+                   )}
                 </div>
              </div>
           )}
