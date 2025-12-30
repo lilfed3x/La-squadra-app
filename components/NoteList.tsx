@@ -1,6 +1,7 @@
+
 import React, { useMemo, useState } from 'react';
-import { Note, NoteCategory, User } from '../types';
-import { Clock, Filter, Search, Tag, SlidersHorizontal, Image as ImageIcon, Film, Trash2, Edit2 } from 'lucide-react';
+import { Note, NoteCategory, User, Attachment } from '../types';
+import { Clock, Filter, Search, Tag, SlidersHorizontal, Image as ImageIcon, Film, Trash2, Edit2, Youtube } from 'lucide-react';
 
 interface NoteListProps {
   notes: Note[];
@@ -13,6 +14,13 @@ interface NoteListProps {
   onEditNote?: (note: Note) => void;
   onDeleteNote?: (noteId: string) => void;
 }
+
+// Helper to extract YouTube ID (duplicated here to avoid prop drilling complex utils, or could be moved to shared file)
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
 
 export const NoteList: React.FC<NoteListProps> = ({
   notes,
@@ -70,6 +78,49 @@ export const NoteList: React.FC<NoteListProps> = ({
       case NoteCategory.MENTAL: return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
       default: return 'text-scout-300 bg-scout-700 border-scout-600';
     }
+  };
+
+  const renderAttachment = (att: Attachment) => {
+      if (att.type === 'image') {
+          return <img src={att.url} alt={att.name} className="w-full h-full object-cover transform group-hover/media:scale-105 transition-transform duration-300" />;
+      } 
+      
+      if (att.type === 'youtube') {
+          const vidId = getYoutubeId(att.url);
+          const thumbUrl = vidId ? `https://img.youtube.com/vi/${vidId}/0.jpg` : '';
+          return (
+             <div className="w-full h-full relative">
+               <img src={thumbUrl} alt="Youtube" className="w-full h-full object-cover opacity-90 transform group-hover/media:scale-105 transition-transform duration-300" />
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-red-600/90 flex items-center justify-center shadow-lg group-hover/media:scale-110 transition-transform">
+                     <Youtube className="w-4 h-4 text-white fill-current" />
+                  </div>
+               </div>
+               <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
+                  <p className="text-[9px] text-white truncate text-center">YouTube</p>
+               </div>
+             </div>
+          );
+      }
+
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center text-scout-400">
+            <Film className="w-8 h-8 mb-1" />
+            <span className="text-[10px] uppercase font-bold">Video</span>
+        </div>
+      );
+  };
+
+  const handleAttachmentClick = (att: Attachment) => {
+      if (att.type === 'youtube') {
+          window.open(att.url, '_blank');
+      } else {
+          // Default behavior for images/videos (could open a modal light box in future)
+          const w = window.open('about:blank');
+          if (w) {
+              w.document.write(`<img src="${att.url}" style="max-width:100%; height:auto;">`);
+          }
+      }
   };
 
   return (
@@ -161,7 +212,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                 
                 {/* Edit/Delete Actions */}
                 {isOwner && (
-                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button 
                         onClick={() => onEditNote && onEditNote(note)}
                         className="p-1.5 bg-scout-700 hover:bg-blue-500/20 text-scout-400 hover:text-blue-400 rounded-md transition-colors"
@@ -199,17 +250,15 @@ export const NoteList: React.FC<NoteListProps> = ({
                 {note.attachments && note.attachments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {note.attachments.map(att => (
-                      <div key={att.id} className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media cursor-pointer hover:border-scout-accent transition-colors">
-                        {att.type === 'image' ? (
-                          <img src={att.url} alt={att.name} className="w-full h-full object-cover transform group-hover/media:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-scout-400">
-                             <Film className="w-8 h-8 mb-1" />
-                             <span className="text-[10px] uppercase font-bold">Video</span>
-                          </div>
-                        )}
+                      <div 
+                        key={att.id} 
+                        onClick={() => handleAttachmentClick(att)}
+                        className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media cursor-pointer hover:border-scout-accent transition-colors"
+                      >
+                        {renderAttachment(att)}
+                        
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">Ver</span>
+                          <span className="text-white text-xs font-medium">{att.type === 'youtube' ? 'Abrir' : 'Ver'}</span>
                         </div>
                       </div>
                     ))}

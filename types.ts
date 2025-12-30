@@ -1,3 +1,4 @@
+
 export enum NoteCategory {
   GENERAL = 'General',
   STRENGTH = 'Fortaleza',
@@ -39,7 +40,7 @@ export interface Scout {
 
 export interface Attachment {
   id: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'youtube';
   url: string;
   name: string;
 }

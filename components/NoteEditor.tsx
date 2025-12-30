@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Attachment, NoteCategory } from '../types';
-import { Plus, Sparkles, Tag, X, Paperclip, Image as ImageIcon, Film, Loader2, Save, AlertCircle } from 'lucide-react';
+import { Plus, Sparkles, Tag, X, Paperclip, Image as ImageIcon, Film, Loader2, Save, AlertCircle, Youtube, Link as LinkIcon, Check } from 'lucide-react';
 import { suggestNoteTags } from '../services/geminiService';
 import { nanoid } from 'nanoid';
 
@@ -15,6 +16,13 @@ interface NoteEditorProps {
   };
 }
 
+// Helper to extract YouTube ID
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initialData }) => {
   const [content, setContent] = useState(initialData?.content || '');
   const [category, setCategory] = useState<NoteCategory>(initialData?.category || NoteCategory.GENERAL);
@@ -24,6 +32,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // YouTube Link State
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -117,6 +129,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleAddLink = () => {
+    const videoId = getYoutubeId(linkUrl);
+    
+    if (videoId) {
+      const newAttachment: Attachment = {
+        id: nanoid(),
+        type: 'youtube',
+        url: linkUrl,
+        name: `Video YouTube`
+      };
+      setAttachments(prev => [...prev, newAttachment]);
+      setLinkUrl('');
+      setShowLinkInput(false);
+      setUploadError(null);
+    } else {
+      setUploadError('Enlace no válido. Por favor ingresa una URL válida de YouTube.');
+    }
+  };
+
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
@@ -126,6 +157,32 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
     if (content.trim()) {
       onSave(content, category, tags, attachments);
     }
+  };
+
+  // Render thumbnail for youtube
+  const renderAttachmentPreview = (att: Attachment) => {
+     if (att.type === 'image') {
+       return <img src={att.url} alt={att.name} className="w-full h-full object-cover" />;
+     } else if (att.type === 'youtube') {
+       const vidId = getYoutubeId(att.url);
+       const thumbUrl = vidId ? `https://img.youtube.com/vi/${vidId}/0.jpg` : '';
+       return (
+         <div className="w-full h-full relative group">
+           <img src={thumbUrl} alt="Youtube" className="w-full h-full object-cover opacity-80" />
+           <div className="absolute inset-0 flex items-center justify-center">
+             <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                <Youtube className="w-4 h-4 text-white fill-current" />
+             </div>
+           </div>
+         </div>
+       );
+     } else {
+       return (
+          <div className="w-full h-full flex items-center justify-center text-scout-400 bg-scout-900">
+            <Film className="w-8 h-8" />
+          </div>
+       );
+     }
   };
 
   return (
@@ -161,17 +218,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
           <div className="flex flex-wrap gap-2 mb-4 p-2 bg-scout-900/50 rounded-lg border border-scout-700/50">
             {attachments.map(att => (
               <div key={att.id} className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-800 border border-scout-700">
-                {att.type === 'image' ? (
-                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-scout-400">
-                    <Film className="w-8 h-8" />
-                  </div>
-                )}
+                {renderAttachmentPreview(att)}
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.id)}
-                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100 z-10"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -247,22 +298,61 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
               </div>
             </div>
 
-            <div className="flex gap-2 w-full sm:w-auto">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept="image/*,video/*"
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 bg-scout-700 hover:bg-scout-600 text-scout-200 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors border border-scout-600 w-full sm:w-auto justify-center"
-              >
-                <Paperclip className="w-4 h-4" />
-                Adjuntar Multimedia
-              </button>
+            <div className="flex gap-2 w-full sm:w-auto items-end">
+              
+              {showLinkInput ? (
+                <div className="flex items-center gap-1 animate-scaleIn bg-scout-900 border border-scout-700 rounded-lg p-1 w-full sm:w-auto">
+                   <input 
+                    type="text" 
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="Pegar enlace YouTube..."
+                    className="bg-transparent text-xs text-white px-2 py-1 outline-none w-40"
+                    autoFocus
+                   />
+                   <button 
+                    type="button" 
+                    onClick={handleAddLink}
+                    className="p-1.5 bg-scout-accent text-scout-900 rounded hover:bg-emerald-400"
+                   >
+                     <Check className="w-3 h-3" />
+                   </button>
+                   <button 
+                    type="button" 
+                    onClick={() => { setShowLinkInput(false); setLinkUrl(''); }}
+                    className="p-1.5 text-scout-400 hover:text-white"
+                   >
+                     <X className="w-3 h-3" />
+                   </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowLinkInput(true)}
+                    className="px-3 py-2 bg-scout-700 hover:bg-red-600 text-scout-200 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors border border-scout-600 w-full sm:w-auto justify-center"
+                    title="Añadir enlace de YouTube"
+                  >
+                    <Youtube className="w-4 h-4" />
+                  </button>
+                  
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept="image/*,video/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2 bg-scout-700 hover:bg-scout-600 text-scout-200 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors border border-scout-600 w-full sm:w-auto justify-center"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    Adjuntar
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
