@@ -376,7 +376,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                                            {user.role}
                                                        </span>
                                                        {user.approved === false ? (
-                                                           <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-yellow-500/20 text-yellow-400 flex items-center gap-1">
+                                                           <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-yellow-500/20 text-yellow-400 flex items-center gap-1 animate-pulse">
                                                                <AlertTriangle className="w-3 h-3" /> Pendiente
                                                            </span>
                                                        ) : (
@@ -393,10 +393,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                                            <button 
                                                              type="button"
                                                              onClick={() => handleToggleApproval(user)}
-                                                             className="p-1.5 bg-green-500/10 hover:bg-green-500/30 text-green-400 rounded transition-colors"
+                                                             className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded transition-colors shadow-lg shadow-green-500/20 flex items-center gap-1"
                                                              title="Aprobar Acceso"
                                                            >
-                                                               <CheckCircle className="w-4 h-4" />
+                                                               <CheckCircle className="w-3.5 h-3.5" /> Aprobar
+                                                           </button>
+                                                       )}
+                                                       {user.id !== currentUser.id && user.approved !== false && (
+                                                            <button 
+                                                             type="button"
+                                                             onClick={() => handleToggleApproval(user)}
+                                                             className="p-1.5 hover:bg-yellow-500/20 text-scout-400 hover:text-yellow-400 rounded transition-colors"
+                                                             title="Revocar Acceso"
+                                                           >
+                                                               <XCircle className="w-4 h-4" />
                                                            </button>
                                                        )}
                                                        <button 

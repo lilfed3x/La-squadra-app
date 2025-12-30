@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { AuthService } from '../services/authService';
-import { Activity, Lock, Mail, User as UserIcon, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Activity, Lock, Mail, User as UserIcon, ArrowRight, Loader2, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react';
 import { User, AppSettings } from '../types';
 
 interface AuthPageProps {
@@ -70,8 +71,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
     try {
       const result = await AuthService.register(name, email, password);
       if (result.success) {
-        setSuccessMsg('¡Cuenta creada con éxito! Por favor inicia sesión.');
-        setTimeout(() => switchMode('login'), 2000);
+        // Mensaje amigable y explicativo sobre la aprobación
+        setSuccessMsg('¡Bienvenido a la comunidad! Tu cuenta ha sido registrada correctamente. Por motivos de seguridad, el acceso está pendiente de aprobación por un administrador. Te notificaremos cuando tu cuenta esté activa.');
+        // No cambiamos automáticamente a login para que puedan leer el mensaje con calma
+        // setTimeout(() => switchMode('login'), 5000); 
       } else {
         setError(result.error || 'Falló el registro');
       }
@@ -130,15 +133,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
 
         {/* Alerts */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-6 flex items-start gap-2">
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-6 flex items-start gap-2 animate-pulse">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
         {successMsg && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm p-3 rounded-lg mb-6 flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{successMsg}</span>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm p-4 rounded-lg mb-6 flex flex-col gap-2 animate-scaleIn">
+            <div className="flex items-center gap-2 font-bold">
+               <ShieldCheck className="w-5 h-5 text-emerald-400" />
+               <span>Solicitud Recibida</span>
+            </div>
+            <p className="text-emerald-300/80 leading-relaxed text-xs">
+               {successMsg}
+            </p>
+            {mode === 'register' && (
+               <button onClick={() => switchMode('login')} className="mt-2 text-xs font-bold text-emerald-400 hover:text-white underline self-start">
+                  Volver al Login
+               </button>
+            )}
           </div>
         )}
 
@@ -203,7 +216,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
           </form>
         )}
 
-        {mode === 'register' && (
+        {mode === 'register' && !successMsg && (
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nombre Completo</label>
