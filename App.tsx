@@ -11,8 +11,10 @@ import { PlayerProfile } from './components/PlayerProfile';
 import { PlayerFormModal, ModalTab } from './components/PlayerFormModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ProfileModal } from './components/ProfileModal';
+import { ConfirmModal } from './components/ConfirmModal';
+import { BulkActionModal } from './components/BulkActionModal';
 import { Dashboard } from './components/Dashboard';
-import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, CloudLightning, Shield, Download, CloudOff, AlertTriangle, Copy, Check, RefreshCw, X } from 'lucide-react';
+import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, CloudLightning, Shield, Download, CloudOff, AlertTriangle, Copy, Check, RefreshCw, X, CheckSquare, Trash2, ArrowRightLeft } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 type ViewMode = 'dashboard' | 'database' | 'profile_view';
@@ -37,6 +39,10 @@ const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activePlayerId, setActivePlayerId] = useState<string>('');
   
+  // Selection Mode State
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
+
   // Responsive State
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -53,6 +59,17 @@ const App: React.FC = () => {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [modalInitialTab, setModalInitialTab] = useState<ModalTab>('general');
   const [modalRestrictToTab, setModalRestrictToTab] = useState(false);
+
+  // Custom Modals State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [dbError, setDbError] = useState<string | null>(dataService.dbError);
@@ -193,10 +210,17 @@ const App: React.FC = () => {
 
   const handleUpdatePlayer = (player: Player) => dataService.updatePlayer(player);
 
-  const handleDeletePlayer = (id: string) => {
-    // Optimistic UI handled in DataService, just manage selection state here
-    dataService.deletePlayer(id); 
-    setActivePlayerId(''); // Clear selection immediately
+  const confirmDeletePlayer = (id: string) => {
+    setConfirmModal({
+        isOpen: true,
+        title: 'Eliminar Jugador',
+        message: '¿Estás seguro de que deseas eliminar este jugador? Esta acción es irreversible y eliminará todas sus notas asociadas.',
+        isDestructive: true,
+        onConfirm: () => {
+            dataService.deletePlayer(id);
+            if (activePlayerId === id) setActivePlayerId('');
+        }
+    });
   };
 
   const openAddModal = () => { 
@@ -214,6 +238,58 @@ const App: React.FC = () => {
   };
 
   const handleExportAll = () => exportPlayersToExcel(filteredPlayers);
+
+  // --- SELECTION MODE LOGIC ---
+  const toggleSelectionMode = () => {
+      setIsSelectionMode(!isSelectionMode);
+      setSelectedPlayers(new Set());
+      if (!isSelectionMode && isMobile) {
+          // Clear active selection to show list with checkboxes
+          setActivePlayerId('');
+      }
+  };
+
+  const togglePlayerSelection = (playerId: string, e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent opening player details
+      const newSet = new Set(selectedPlayers);
+      if (newSet.has(playerId)) {
+          newSet.delete(playerId);
+      } else {
+          newSet.add(playerId);
+      }
+      setSelectedPlayers(newSet);
+  };
+
+  const handleBulkDelete = () => {
+      if (selectedPlayers.size === 0) return;
+      setConfirmModal({
+          isOpen: true,
+          title: `Eliminar ${selectedPlayers.size} Jugadores`,
+          message: '¿Estás seguro de eliminar los jugadores seleccionados? Esta acción no se puede deshacer.',
+          isDestructive: true,
+          onConfirm: () => {
+              selectedPlayers.forEach(id => dataService.deletePlayer(id));
+              setSelectedPlayers(new Set());
+              setIsSelectionMode(false);
+              setActivePlayerId('');
+          }
+      });
+  };
+
+  const handleBulkMove = (newTeamName: string) => {
+      if (selectedPlayers.size === 0) return;
+      
+      const updates = Array.from(selectedPlayers).map(id => {
+          const p = players.find(player => player.id === id);
+          if (!p) return null;
+          return { ...p, team: newTeamName };
+      }).filter(Boolean) as Player[];
+
+      updates.forEach(p => dataService.updatePlayer(p));
+      
+      setSelectedPlayers(new Set());
+      setIsSelectionMode(false);
+  };
 
   const filteredPlayers = useMemo(() => {
     const term = (playerFilter || '').toLowerCase().trim();
@@ -257,6 +333,7 @@ const App: React.FC = () => {
   // Mobile Navigation Helpers
   const handleNavClick = (mode: ViewMode) => {
       setViewMode(mode);
+      setIsSelectionMode(false); // Exit selection mode on nav change
       // Reset player selection when going to database in mobile to show list
       if (mode === 'database' && isMobile) {
           setActivePlayerId('');
@@ -264,6 +341,7 @@ const App: React.FC = () => {
   };
 
   const handlePlayerSelect = (id: string) => {
+      if (isSelectionMode) return; // Prevent selection in selection mode (handled by toggle)
       setActivePlayerId(id);
       // In mobile, stay in 'database' view mode but the renderer handles showing the detail component
       // because activePlayerId is set.
@@ -458,17 +536,57 @@ const App: React.FC = () => {
                 
                 {/* LIST PANEL */}
                 <div className={`
-                    ${isMobile && activePlayerId ? 'hidden' : 'flex'}
+                    ${isMobile && activePlayerId && !isSelectionMode ? 'hidden' : 'flex'}
                     w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col transition-all duration-300
                 `}>
                    <div className="w-full flex flex-col h-full">
-                     <div className="p-4 border-b border-scout-800 flex items-center justify-between">
-                        <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Jugadores ({filteredPlayers.length})</span>
-                        <div className="flex gap-1">
-                          <button onClick={handleExportAll} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-colors"><Download className="w-4 h-4" /></button>
-                          <button onClick={openAddModal} className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors"><UserPlus className="w-4 h-4" /></button>
+                     <div className="p-4 border-b border-scout-800 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Jugadores ({filteredPlayers.length})</span>
+                            
+                            <div className="flex gap-1">
+                                <button 
+                                    onClick={toggleSelectionMode} 
+                                    className={`p-1.5 rounded-md transition-colors ${isSelectionMode ? 'bg-scout-gold text-scout-900' : 'bg-scout-800 hover:bg-scout-700 text-scout-400'}`}
+                                    title="Modo Selección"
+                                >
+                                    <CheckSquare className="w-4 h-4" />
+                                </button>
+                                {!isSelectionMode && (
+                                    <>
+                                        <button onClick={handleExportAll} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-colors"><Download className="w-4 h-4" /></button>
+                                        <button onClick={openAddModal} className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors"><UserPlus className="w-4 h-4" /></button>
+                                    </>
+                                )}
+                            </div>
                         </div>
+
+                        {/* Selection Action Bar */}
+                        {isSelectionMode && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-scout-700/50 animate-fadeIn">
+                                <span className="text-[10px] text-scout-400 font-bold">{selectedPlayers.size} Seleccionados</span>
+                                <div className="flex gap-1 ml-auto">
+                                    <button 
+                                        onClick={() => setIsBulkModalOpen(true)}
+                                        disabled={selectedPlayers.size === 0}
+                                        className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors disabled:opacity-50"
+                                        title="Mover a Equipo / Agente Libre"
+                                    >
+                                        <ArrowRightLeft className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        onClick={handleBulkDelete}
+                                        disabled={selectedPlayers.size === 0}
+                                        className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors disabled:opacity-50"
+                                        title="Eliminar Seleccionados"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                      </div>
+
                      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
                         {sortedTeams.map(team => {
                           const isExpanded = expandedTeams[team] !== false; 
@@ -485,7 +603,10 @@ const App: React.FC = () => {
                                         key={player.id} 
                                         player={player} 
                                         isActive={player.id === activePlayerId} 
-                                        onClick={() => handlePlayerSelect(player.id)} 
+                                        onClick={() => isSelectionMode ? togglePlayerSelection(player.id, {} as any) : handlePlayerSelect(player.id)} 
+                                        isSelectionMode={isSelectionMode}
+                                        isSelected={selectedPlayers.has(player.id)}
+                                        onToggleSelect={(e) => togglePlayerSelection(player.id, e)}
                                     />
                                   ))}
                                 </div>
@@ -499,7 +620,7 @@ const App: React.FC = () => {
                 
                 {/* DETAIL PANEL */}
                 <div className={`
-                    ${isMobile && !activePlayerId ? 'hidden' : 'flex-1'}
+                    ${(isMobile && !activePlayerId) || (isMobile && isSelectionMode) ? 'hidden' : 'flex-1'}
                     bg-[#0b1120] overflow-hidden absolute md:relative inset-0 md:inset-auto z-20 md:z-auto
                 `}>
                    {activePlayer ? (
@@ -509,7 +630,7 @@ const App: React.FC = () => {
                         onAddNote={handleAddNote} 
                         onEditPlayer={openEditModal} 
                         onPlayerUpdate={handleUpdatePlayer} 
-                        onDeletePlayer={handleDeletePlayer} 
+                        onDeletePlayer={confirmDeletePlayer} 
                         currentUser={user} 
                         allUsers={dataService.getUsers()} 
                         onEditNote={handleEditNote} 
@@ -569,6 +690,23 @@ const App: React.FC = () => {
       />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appSettings} onSave={handleSaveSettings} currentUser={user} />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} currentUser={user} onSave={handleUpdateProfile} />
+      
+      {/* Custom Confirmation Modals */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen} 
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDestructive={confirmModal.isDestructive}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <BulkActionModal 
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        onConfirm={handleBulkMove}
+        count={selectedPlayers.size}
+      />
     </div>
   );
 };

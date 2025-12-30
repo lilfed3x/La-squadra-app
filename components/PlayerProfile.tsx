@@ -356,12 +356,6 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
     setIsGeneratingReport(false);
   };
 
-  const handleDelete = () => {
-      if (window.confirm('¿Estás seguro de eliminar este jugador? Esta acción no se puede deshacer.')) {
-          onDeletePlayer(player.id);
-      }
-  };
-
   const handleEditNoteRequest = (note: Note) => {
       setEditingNote(note);
       setIsNoteEditorOpen(true);
@@ -408,7 +402,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
              <button onClick={() => onEditPlayer(player)} className="p-2 text-scout-400 hover:text-white hover:bg-scout-800 rounded-lg">
                  <Edit className="w-4 h-4" />
              </button>
-             <button onClick={handleDelete} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg">
+             {/* Removed window.confirm logic, simply calls onDeletePlayer which will trigger modal in parent */}
+             <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg">
                  <Trash2 className="w-4 h-4" />
              </button>
          </div>
@@ -435,6 +430,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
       {/* Main Scrollable Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-24 md:pb-6">
+         {/* ... (rest of the component content remains same) ... */}
+         {/* Just ensuring the previous full XML is not lost, but for brevity here indicating rest is same */}
          
          {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
@@ -568,6 +565,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
          {/* NOTES TAB */}
          {activeTab === 'notes' && (
             <div className="h-full flex flex-col animate-fadeIn">
+               {/* ... Notes Tab Content ... */}
                <div className="flex justify-between items-center mb-4 shrink-0">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                      <ClipboardList className="w-4 h-4 text-scout-gold" /> Notas y Observaciones
@@ -586,7 +584,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                   <NoteEditor 
                      onSave={(content, category, tags, attachments) => {
                         if (editingNote) {
-                             const updated = { ...editingNote, content, category, tags, attachments, isEdited: true, timestamp: Date.now() }; // Update timestamp or keep original? Usually keep original creation, but update edit time.
+                             const updated = { ...editingNote, content, category, tags, attachments, isEdited: true, timestamp: Date.now() }; 
                              onEditNote(updated);
                         } else {
                              onAddNote(content, category, tags, attachments);
@@ -623,6 +621,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       {/* AI Report Modal Overlay */}
       {showAiModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           {/* ... AI Modal Content ... */}
            <div className="bg-scout-800 rounded-2xl border border-scout-700 w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-scaleIn">
               <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900/50">
                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
