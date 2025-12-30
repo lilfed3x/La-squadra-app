@@ -367,12 +367,13 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
           </div>
        )}
 
-      {/* Header Banner */}
-      <div className="relative h-48 bg-gradient-to-r from-scout-900 to-slate-900 border-b border-scout-700 shrink-0">
+      {/* Header Banner - Increased height from h-48 to h-64 to fix overlap */}
+      <div className="relative h-64 bg-gradient-to-r from-scout-900 to-slate-900 border-b border-scout-700 shrink-0">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
           
-          <div className="absolute inset-0 flex items-center px-8 gap-6">
+          {/* Added pb-12 to push content up optically */}
+          <div className="absolute inset-0 flex items-center px-8 gap-6 pb-12">
               <div className="relative group">
                   <div className="w-32 h-32 rounded-full border-4 border-scout-800 shadow-2xl overflow-hidden bg-scout-700 relative z-10">
                       <img src={player.imageUrl} alt={player.name} className="w-full h-full object-cover" />
