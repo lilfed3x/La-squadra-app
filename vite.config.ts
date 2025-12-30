@@ -26,10 +26,40 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
+      // Aumentamos el límite de advertencia a 1000 kB (1 MB)
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         input: {
           main: './index.html',
         },
+        output: {
+          // Estrategia de división de código manual para optimizar la carga
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              // Separar librerías grandes en sus propios archivos (chunks)
+              if (id.includes('@google/genai')) {
+                return 'genai';
+              }
+              if (id.includes('recharts')) {
+                return 'recharts';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              if (id.includes('jspdf')) {
+                return 'jspdf';
+              }
+              if (id.includes('xlsx')) {
+                return 'xlsx';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons';
+              }
+              // El resto de dependencias van a un archivo vendor común
+              return 'vendor';
+            }
+          }
+        }
       },
     }
   };
