@@ -23,8 +23,6 @@ interface PlayerProfileProps {
   onDeleteNote: (noteId: string) => void;
 }
 
-type InfoModalType = 'nutrition' | 'physical' | 'contract' | null;
-
 const STAT_LABELS: Record<string, string> = {
   pace: 'Ritmo',
   shooting: 'Tiro',
@@ -47,7 +45,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
   const historyData = player.nutrition?.bodyCompositionHistory || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
          {/* Top Stats Row */}
          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700 relative overflow-hidden group">
@@ -190,7 +188,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
 };
 
 const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => (
-  <div className="space-y-6">
+  <div className="space-y-6 animate-fadeIn">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-scout-900/50 p-5 rounded-xl border border-scout-700 flex flex-col items-center justify-center text-center">
                <div className="text-xs text-scout-500 uppercase font-bold tracking-wider mb-2">Nivel de Fatiga</div>
@@ -224,7 +222,7 @@ const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => (
 );
 
 const ContractContent: React.FC<{ player: Player }> = ({ player }) => (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="bg-scout-900/50 p-6 rounded-xl border border-scout-700 relative overflow-hidden">
                  <div className="absolute top-0 right-0 p-4 opacity-10"><Briefcase className="w-16 h-16 text-purple-400"/></div>
@@ -303,7 +301,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   onEditNote,
   onDeleteNote
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'ai-report'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'ai-report' | 'physical' | 'nutrition' | 'contract'>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -311,9 +309,6 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   // Search state for notes
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
   const [noteCategoryFilter, setNoteCategoryFilter] = useState<NoteCategory | 'All'>('All');
-
-  // Specific Modal State for detailed views
-  const [infoModal, setInfoModal] = useState<InfoModalType>(null);
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
@@ -336,37 +331,6 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-[#0b1120] relative">
-       {/* Detailed Info Modals (Overlays) */}
-       {infoModal && (
-          <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-              <div className="bg-scout-800 w-full max-w-4xl max-h-[90%] rounded-2xl border border-scout-700 shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
-                  <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900/50">
-                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          {infoModal === 'nutrition' && <><Apple className="w-5 h-5 text-green-400"/> Informe Nutricional</>}
-                          {infoModal === 'physical' && <><ActivityIcon className="w-5 h-5 text-blue-400"/> Perfil Físico</>}
-                          {infoModal === 'contract' && <><Briefcase className="w-5 h-5 text-purple-400"/> Detalles Contractuales</>}
-                      </h3>
-                      <button onClick={() => setInfoModal(null)} className="text-scout-400 hover:text-white"><X className="w-6 h-6" /></button>
-                  </div>
-                  <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-[#0b1120]/50">
-                      {infoModal === 'nutrition' && <NutritionContent player={player} />}
-                      {infoModal === 'physical' && <PhysicalContent player={player} />}
-                      {infoModal === 'contract' && <ContractContent player={player} />}
-                  </div>
-                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end">
-                      <button 
-                        onClick={() => {
-                            onEditPlayer(player);
-                        }} 
-                        className="flex items-center gap-2 px-4 py-2 bg-scout-700 hover:bg-scout-600 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                          <Edit className="w-4 h-4" /> Editar Datos
-                      </button>
-                  </div>
-              </div>
-          </div>
-       )}
-
       {/* Header Banner - Increased height from h-48 to h-64 to fix overlap */}
       <div className="relative h-64 bg-gradient-to-r from-scout-900 to-slate-900 border-b border-scout-700 shrink-0">
           {/* Background Pattern */}
@@ -439,22 +403,45 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="absolute bottom-0 left-0 right-0 px-8 flex gap-6 z-10">
+          <div className="absolute bottom-0 left-0 right-0 px-8 flex gap-6 z-10 overflow-x-auto custom-scrollbar">
               <button 
                 onClick={() => setActiveTab('overview')}
-                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'overview' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'overview' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
               >
                   <ActivityIcon className="w-4 h-4" /> Visión General
               </button>
+              
+              <button 
+                onClick={() => setActiveTab('physical')}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'physical' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+              >
+                  <ActivityIcon className="w-4 h-4" /> Físico
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab('nutrition')}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'nutrition' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+              >
+                  <Apple className="w-4 h-4" /> Nutrición
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab('contract')}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'contract' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+              >
+                  <Briefcase className="w-4 h-4" /> Contrato
+              </button>
+
               <button 
                 onClick={() => setActiveTab('notes')}
-                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'notes' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'notes' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
               >
-                  <ClipboardList className="w-4 h-4" /> Notas de Scouting <span className="px-1.5 py-0.5 bg-scout-800 rounded-full text-[10px] text-scout-400">{notes.length}</span>
+                  <ClipboardList className="w-4 h-4" /> Notas <span className="px-1.5 py-0.5 bg-scout-800 rounded-full text-[10px] text-scout-400 ml-1">{notes.length}</span>
               </button>
+              
               <button 
                 onClick={() => setActiveTab('ai-report')}
-                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'ai-report' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'ai-report' ? 'border-scout-accent text-white' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
               >
                   <BrainCircuit className="w-4 h-4" /> Informe IA
               </button>
@@ -466,7 +453,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
           
           {/* TAB: OVERVIEW */}
           {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto animate-fadeIn">
                   
                   {/* Left Column: Stats & Pitch */}
                   <div className="lg:col-span-2 space-y-6">
@@ -500,36 +487,6 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                                   <TacticalPitch position={player.position} />
                               </div>
                           </div>
-                      </div>
-
-                      {/* Extended Info Cards Row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <button onClick={() => setInfoModal('contract')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-purple-500/50 hover:bg-scout-700/50 transition-all group text-left">
-                              <div className="flex justify-between items-start mb-2">
-                                  <Briefcase className="w-6 h-6 text-purple-400 group-hover:scale-110 transition-transform" />
-                                  <ChevronRight className="w-4 h-4 text-scout-600" />
-                              </div>
-                              <div className="text-sm font-bold text-white mb-0.5">Contrato</div>
-                              <div className="text-xs text-scout-400">{player.contract?.contractExpiration || 'No disp.'}</div>
-                          </button>
-
-                          <button onClick={() => setInfoModal('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 hover:bg-scout-700/50 transition-all group text-left">
-                              <div className="flex justify-between items-start mb-2">
-                                  <ActivityIcon className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
-                                  <ChevronRight className="w-4 h-4 text-scout-600" />
-                              </div>
-                              <div className="text-sm font-bold text-white mb-0.5">Físico</div>
-                              <div className="text-xs text-scout-400">{player.physical?.injuryRisk === 'Bajo' ? 'Apto' : 'Riesgo'}</div>
-                          </button>
-
-                          <button onClick={() => setInfoModal('nutrition')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-green-500/50 hover:bg-scout-700/50 transition-all group text-left">
-                              <div className="flex justify-between items-start mb-2">
-                                  <Apple className="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform" />
-                                  <ChevronRight className="w-4 h-4 text-scout-600" />
-                              </div>
-                              <div className="text-sm font-bold text-white mb-0.5">Nutrición</div>
-                              <div className="text-xs text-scout-400">{player.nutrition?.weightStatus || 'No disp.'}</div>
-                          </button>
                       </div>
                   </div>
 
@@ -567,6 +524,45 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                       </div>
                   </div>
 
+              </div>
+          )}
+
+          {/* TAB: PHYSICAL */}
+          {activeTab === 'physical' && (
+              <div className="max-w-7xl mx-auto">
+                 <div className="flex justify-between items-center mb-4">
+                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><ActivityIcon className="w-5 h-5 text-blue-400"/> Perfil Físico</h2>
+                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                         <Edit className="w-3.5 h-3.5"/> Editar
+                     </button>
+                 </div>
+                 <PhysicalContent player={player} />
+              </div>
+          )}
+
+          {/* TAB: NUTRITION */}
+          {activeTab === 'nutrition' && (
+              <div className="max-w-7xl mx-auto">
+                 <div className="flex justify-between items-center mb-4">
+                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><Apple className="w-5 h-5 text-green-400"/> Informe Nutricional</h2>
+                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                         <Edit className="w-3.5 h-3.5"/> Editar
+                     </button>
+                 </div>
+                 <NutritionContent player={player} />
+              </div>
+          )}
+
+          {/* TAB: CONTRACT */}
+          {activeTab === 'contract' && (
+              <div className="max-w-7xl mx-auto">
+                 <div className="flex justify-between items-center mb-4">
+                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-purple-400"/> Detalles del Contrato</h2>
+                     <button onClick={() => onEditPlayer(player)} className="text-sm bg-scout-800 border border-scout-700 text-scout-300 px-3 py-1.5 rounded hover:bg-scout-700 transition-colors flex items-center gap-2">
+                         <Edit className="w-3.5 h-3.5"/> Editar
+                     </button>
+                 </div>
+                 <ContractContent player={player} />
               </div>
           )}
 
