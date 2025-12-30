@@ -179,7 +179,7 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
 
   public subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => { this.listeners.delete(listener); };
   }
 
   private notifyListeners() {

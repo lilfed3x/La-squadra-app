@@ -112,7 +112,7 @@ const App: React.FC = () => {
       setDbError(dataService.dbError);
     });
 
-    return () => unsubscribe();
+    return () => { unsubscribe(); };
   }, [appSettings.appName]);
 
   const handleCopySQL = () => {
