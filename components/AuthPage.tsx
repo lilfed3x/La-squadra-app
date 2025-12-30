@@ -128,7 +128,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
           <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 text-center leading-tight" style={{fontFamily: 'Inter, sans-serif'}}>
              {appSettings.appName}
           </h1>
-          <p className="text-scout-gold text-sm tracking-widest uppercase font-medium">Club Management Suite</p>
+          <p className="text-scout-gold text-sm tracking-widest uppercase font-medium">Sport Business Suite</p>
         </div>
 
         {/* Alerts */}
