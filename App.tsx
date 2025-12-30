@@ -5,6 +5,7 @@ import { AuthService } from './services/authService';
 import { dataService } from './services/dataService'; 
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { exportPlayersToExcel } from './services/exportService'; 
+import { googleDriveService } from './services/googleDriveService';
 import { AuthPage } from './components/AuthPage';
 import { PlayerCard } from './components/PlayerCard';
 import { PlayerProfile } from './components/PlayerProfile';
@@ -46,7 +47,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       const currentUser = await AuthService.getCurrentSessionUser();
-      if (currentUser) setUser(currentUser);
+      if (currentUser) {
+          setUser(currentUser);
+          // Check for auto-backup if user is logged in
+          setTimeout(() => googleDriveService.checkAndRunAutoBackup(), 5000);
+      }
       
       setPlayers(dataService.getPlayers());
       setNotes(dataService.getNotes());
@@ -56,6 +61,9 @@ const App: React.FC = () => {
       const initialPlayers = dataService.getPlayers();
       if (initialPlayers.length > 0) setActivePlayerId(initialPlayers[0].id);
       setIsLoadingAuth(false);
+      
+      // Init Drive service (loads scripts)
+      googleDriveService.init();
     };
     initApp();
     document.title = appSettings.appName;
@@ -89,6 +97,8 @@ const App: React.FC = () => {
     setUser(user);
     setPlayers(dataService.getPlayers());
     setNotes(dataService.getNotes());
+    // Try auto-backup after login
+    setTimeout(() => googleDriveService.checkAndRunAutoBackup(), 3000);
   };
 
   const handleLogout = () => {

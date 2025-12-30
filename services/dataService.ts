@@ -51,7 +51,10 @@ class DataService {
     appName: 'LA SQUADRA',
     appLogoUrl: '',
     launchAtStartup: false,
-    minimizeToTray: false
+    minimizeToTray: false,
+    backupFrequency: 'never',
+    lastBackupDate: null,
+    googleDriveConnected: false
   };
 
   private initialized = false;

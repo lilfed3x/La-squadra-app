@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppSettings, User } from '../types';
-import { X, Save, Layout, Type, Image as ImageIcon, Upload, Trash2, AlertTriangle, Users, Plus, Edit2, Shield, Search, CheckCircle, XCircle } from 'lucide-react';
+import { AppSettings, User, BackupFrequency } from '../types';
+import { X, Save, Layout, Type, Image as ImageIcon, Upload, Trash2, AlertTriangle, Users, Plus, Edit2, Shield, Search, CheckCircle, XCircle, Cloud, Loader2, CalendarClock } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AuthService } from '../services/authService';
+import { googleDriveService } from '../services/googleDriveService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,7 +14,7 @@ interface SettingsModalProps {
   currentUser: User;
 }
 
-type Tab = 'app' | 'users';
+type Tab = 'app' | 'users' | 'backups';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, currentSettings, onSave, currentUser }) => {
   const [activeTab, setActiveTab] = useState<Tab>('app');
@@ -34,6 +35,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
   const [userFormOrg, setUserFormOrg] = useState('');
   const [userFormApproved, setUserFormApproved] = useState(false);
   const [userFormError, setUserFormError] = useState<string | null>(null);
+
+  // Backup State
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
 
   const isAdmin = currentUser.role === 'admin';
 
@@ -78,6 +83,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // --- GOOGLE DRIVE & BACKUP LOGIC ---
+  const handleGoogleConnect = async () => {
+     if (formData.googleDriveConnected) {
+         googleDriveService.signOut();
+         setFormData(prev => ({ ...prev, googleDriveConnected: false }));
+     } else {
+         const success = await googleDriveService.signIn();
+         if (success) {
+             setFormData(prev => ({ ...prev, googleDriveConnected: true }));
+         }
+     }
+  };
+
+  const handleManualBackup = async () => {
+      setIsBackingUp(true);
+      setBackupStatus("Iniciando respaldo...");
+      try {
+          const res = await googleDriveService.createBackup();
+          if (res.success) {
+              setBackupStatus("¡Respaldo completado!");
+              setFormData(prev => ({ ...prev, lastBackupDate: new Date().toISOString() }));
+              // Need to persist this specific update immediately to avoid UI drift
+              dataService.saveSettings({ ...formData, lastBackupDate: new Date().toISOString() });
+          } else {
+              setBackupStatus("Error: " + res.message);
+          }
+      } catch (e) {
+          setBackupStatus("Error inesperado.");
+      } finally {
+          setIsBackingUp(false);
+      }
   };
 
   // --- USER MANAGEMENT LOGIC ---
@@ -206,6 +244,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                 >
                     <Users className="w-4 h-4" /> Gestión de Usuarios
                 </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('backups')}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors border-b-2 ${activeTab === 'backups' ? 'border-scout-gold text-scout-gold bg-scout-800' : 'border-transparent text-scout-400 hover:text-scout-200'}`}
+                >
+                    <Cloud className="w-4 h-4" /> Copias de Seguridad
+                </button>
              </div>
         )}
 
@@ -321,6 +366,95 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                         </button>
                     </div>
                 </form>
+            )}
+
+            {/* TAB: BACKUPS (GOOGLE DRIVE) */}
+            {activeTab === 'backups' && (
+                <div className="space-y-6">
+                    <div className="bg-scout-900/50 p-6 rounded-xl border border-scout-700 flex flex-col items-center justify-center text-center">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${formData.googleDriveConnected ? 'bg-green-500/20 text-green-500' : 'bg-scout-800 text-scout-400'}`}>
+                           <Cloud className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white mb-2">
+                            {formData.googleDriveConnected ? 'Conectado a Google Drive' : 'Copia de Seguridad en la Nube'}
+                        </h3>
+                        <p className="text-sm text-scout-400 max-w-sm mb-6">
+                            {formData.googleDriveConnected 
+                                ? 'Tu cuenta está vinculada. Puedes realizar copias de seguridad de toda la base de datos.' 
+                                : 'Conecta tu cuenta de Google para habilitar el guardado automático de bases de datos en tu Drive personal.'}
+                        </p>
+                        
+                        <button 
+                            type="button"
+                            onClick={handleGoogleConnect}
+                            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${formData.googleDriveConnected ? 'bg-scout-700 hover:bg-red-500/80 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'}`}
+                        >
+                            {formData.googleDriveConnected ? 'Desconectar Cuenta' : 'Conectar con Google'}
+                        </button>
+                    </div>
+
+                    {formData.googleDriveConnected && (
+                        <div className="space-y-4 animate-fadeIn">
+                            <h3 className="text-xs uppercase font-bold text-scout-500 tracking-wider border-b border-scout-700 pb-2">Configuración de Respaldo</h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+                                    <label className="block text-xs text-scout-400 mb-2 uppercase font-bold tracking-wider flex items-center gap-2">
+                                        <CalendarClock className="w-3 h-3" /> Frecuencia Automática
+                                    </label>
+                                    <select 
+                                        value={formData.backupFrequency || 'never'} 
+                                        onChange={(e) => setFormData({...formData, backupFrequency: e.target.value as BackupFrequency})}
+                                        className="w-full bg-scout-900 border border-scout-700 rounded-lg p-2 text-sm text-scout-100 outline-none focus:border-scout-gold"
+                                    >
+                                        <option value="never">Manual (Nunca)</option>
+                                        <option value="daily">Diario</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="monthly">Mensual</option>
+                                    </select>
+                                    <p className="text-[10px] text-scout-500 mt-2">Los respaldos automáticos se realizan al abrir la aplicación si ha pasado el tiempo configurado.</p>
+                                </div>
+
+                                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-xs text-scout-400 uppercase font-bold tracking-wider mb-1">Último Respaldo</div>
+                                        <div className="text-sm font-mono text-white">
+                                            {formData.lastBackupDate ? new Date(formData.lastBackupDate).toLocaleString() : 'Nunca'}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={handleManualBackup}
+                                        disabled={isBackingUp}
+                                        className="mt-3 w-full py-2 bg-scout-accent hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-scout-900 font-bold rounded-lg text-xs flex items-center justify-center gap-2"
+                                    >
+                                        {isBackingUp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                        {isBackingUp ? 'Subiendo...' : 'Respaldar Ahora'}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {backupStatus && (
+                                <div className={`p-3 rounded-lg text-xs font-medium border ${backupStatus.includes('Error') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
+                                    {backupStatus}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Botón de Guardar específico para esta pestaña si se cambia la frecuencia */}
+                     <div className="flex justify-end pt-4 border-t border-scout-700">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-scout-400 hover:text-white mr-2">Cerrar</button>
+                        <button 
+                        type="submit" 
+                        onClick={handleSubmit}
+                        className="px-6 py-2 bg-scout-gold hover:bg-yellow-500 text-scout-900 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-yellow-500/20 transition-all"
+                        >
+                        <Save className="w-4 h-4" />
+                        Guardar Configuración
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* TAB: USERS MANAGEMENT */}

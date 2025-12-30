@@ -24,12 +24,18 @@ export interface User {
   approved?: boolean; // New approval field
 }
 
+export type BackupFrequency = 'never' | 'daily' | 'weekly' | 'monthly';
+
 export interface AppSettings {
   appName: string;
   appLogoUrl: string; // If empty, use default SVG
   // System Preferences
   launchAtStartup: boolean;
   minimizeToTray: boolean;
+  // Backup Preferences
+  backupFrequency: BackupFrequency;
+  lastBackupDate: string | null; // ISO Date string
+  googleDriveConnected?: boolean;
 }
 
 export interface Scout {
