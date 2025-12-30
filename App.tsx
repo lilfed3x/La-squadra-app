@@ -18,7 +18,17 @@ import { nanoid } from 'nanoid';
 type ViewMode = 'dashboard' | 'database';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  // DEV MODE: Login desactivado temporalmente (User inicializado)
+  const [user, setUser] = useState<User | null>({
+    id: 'dev-mode-admin',
+    name: 'Desarrollador (Admin)',
+    email: 'dev@lasquadra.com',
+    role: 'admin',
+    passwordHash: '',
+    salt: '',
+    approved: true
+  });
+
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [appSettings, setAppSettings] = useState<AppSettings>(dataService.getSettings());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -45,8 +55,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
+      // Intentamos obtener sesión real, pero si no hay, mantenemos el usuario dev
       const currentUser = await AuthService.getCurrentSessionUser();
-      if (currentUser) setUser(currentUser);
+      if (currentUser) {
+          setUser(currentUser);
+      }
       
       setPlayers(dataService.getPlayers());
       setNotes(dataService.getNotes());
@@ -93,8 +106,12 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     AuthService.logout();
+    // En modo dev, logout podría no "sacarte" porque el estado inicial es un usuario dummy.
+    // Para simular logout real, ponemos null, pero al recargar volverá el dummy.
     setUser(null);
     setShowUserMenu(false);
+    // Recargar página para forzar reset de estado en este modo híbrido
+    window.location.reload();
   };
 
   const handleSaveSettings = (newSettings: AppSettings) => dataService.saveSettings(newSettings);
@@ -259,6 +276,7 @@ const App: React.FC = () => {
     );
   }
 
+  // BYPASS: No mostramos AuthPage si ya hay un usuario dummy
   if (!user) return <AuthPage onLoginSuccess={handleLoginSuccess} appSettings={appSettings} />;
 
   return (
