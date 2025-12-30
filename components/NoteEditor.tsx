@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Attachment, NoteCategory } from '../types';
-import { Plus, Sparkles, Tag, X, Paperclip, Image as ImageIcon, Film, Loader2, Save, AlertCircle, Youtube, Link as LinkIcon, Check } from 'lucide-react';
+import { Plus, Sparkles, Tag, X, Paperclip, Image as ImageIcon, Film, Loader2, Save, AlertCircle, Youtube, Link as LinkIcon, Check, Send } from 'lucide-react';
 import { suggestNoteTags } from '../services/geminiService';
 import { nanoid } from 'nanoid';
 
@@ -186,43 +186,63 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
   };
 
   return (
-    <div className="bg-scout-800 rounded-xl p-4 border border-scout-600 animate-fadeIn shadow-2xl">
-      <h3 className="text-sm font-semibold text-scout-200 mb-3 flex items-center justify-between">
-        <span>{initialData ? 'Editar Observación' : 'Nueva Observación'}</span>
-        <span className="text-xs font-normal text-scout-500">Borrador</span>
-      </h3>
+    <div className="bg-scout-800 rounded-xl p-4 border border-scout-600 animate-fadeIn shadow-2xl flex flex-col h-full md:h-auto">
+      <div className="flex justify-between items-center mb-3 shrink-0">
+         <h3 className="text-sm font-semibold text-scout-200 flex items-center gap-2">
+            <span>{initialData ? 'Editar Observación' : 'Nueva Observación'}</span>
+            <span className="text-xs font-normal text-scout-500 hidden md:inline">Borrador</span>
+         </h3>
+         {/* Mobile Action Button Header */}
+         <div className="flex items-center gap-2">
+            <button 
+                type="button" 
+                onClick={onCancel}
+                className="text-scout-400 p-2 md:hidden"
+            >
+                <X className="w-5 h-5" />
+            </button>
+            <button
+                type="button"
+                onClick={(e) => handleSubmit(e as any)}
+                disabled={!content.trim()}
+                className="md:hidden bg-scout-accent text-scout-900 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 disabled:opacity-50"
+            >
+                <Send className="w-3 h-3" /> Publicar
+            </button>
+         </div>
+      </div>
       
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
         
         {/* Error Message Area */}
         {uploadError && (
-          <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-400 animate-fadeIn">
+          <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-400 animate-fadeIn shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{uploadError}</span>
             <button type="button" onClick={() => setUploadError(null)} className="ml-auto hover:text-red-300"><X className="w-3 h-3"/></button>
           </div>
         )}
 
-        <div className="mb-4">
+        <div className="mb-4 flex-1">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Escribe tu observación aquí... Menciona tendencias del jugador, ideas tácticas o notas de carácter."
-            className="w-full bg-scout-900 text-scout-100 p-3 rounded-lg border border-scout-700 focus:border-scout-accent focus:ring-1 focus:ring-scout-accent outline-none min-h-[120px] text-sm resize-none"
+            className="w-full h-full bg-scout-900 text-scout-100 p-3 rounded-lg border border-scout-700 focus:border-scout-accent focus:ring-1 focus:ring-scout-accent outline-none text-sm resize-none"
             autoFocus
           />
         </div>
 
         {/* Attachments Preview */}
         {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4 p-2 bg-scout-900/50 rounded-lg border border-scout-700/50">
+          <div className="flex flex-wrap gap-2 mb-4 p-2 bg-scout-900/50 rounded-lg border border-scout-700/50 shrink-0 overflow-x-auto">
             {attachments.map(att => (
-              <div key={att.id} className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-800 border border-scout-700">
+              <div key={att.id} className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-800 border border-scout-700 shrink-0">
                 {renderAttachmentPreview(att)}
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.id)}
-                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100 z-10"
+                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 z-10"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -235,7 +255,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
         )}
 
         {/* Controls Row */}
-        <div className="flex flex-col gap-4 mb-4">
+        <div className="flex flex-col gap-4 mb-4 shrink-0">
           
           {/* Categories */}
           <div>
@@ -357,7 +377,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ onSave, onCancel, initia
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-scout-700">
+        {/* Desktop Footer Actions (Hidden on Mobile) */}
+        <div className="hidden md:flex justify-end gap-3 pt-3 border-t border-scout-700 shrink-0">
           <button
             type="button"
             onClick={onCancel}

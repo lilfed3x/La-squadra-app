@@ -18,9 +18,9 @@ import { nanoid } from 'nanoid';
 type ViewMode = 'dashboard' | 'database' | 'profile_view';
 
 const App: React.FC = () => {
-  // DEV MODE: Login desactivado temporalmente (User inicializado)
+  // DEV MODE: Usamos un UUID válido para evitar errores en Postgres
   const [user, setUser] = useState<User | null>({
-    id: 'dev-mode-admin',
+    id: '00000000-0000-0000-0000-000000000001', // UUID válido para dev
     name: 'Desarrollador (Admin)',
     email: 'dev@lasquadra.com',
     role: 'admin',
