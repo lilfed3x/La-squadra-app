@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar TEXT,
   age INTEGER,
   bio TEXT,
-  email TEXT
+  email TEXT,
+  approved BOOLEAN DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS public.app_config (
@@ -131,16 +132,16 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
 -- === AUTOMATIZACIÓN (TRIGGERS) ===
--- Este trigger es crucial para crear el perfil automáticamente si la app falla.
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, email, role)
+  INSERT INTO public.profiles (id, name, email, role, approved)
   VALUES (
     new.id, 
     COALESCE(new.raw_user_meta_data->>'name', 'Nuevo Usuario'),
     new.email,
-    'scout'
+    'scout',
+    false -- Nuevos usuarios requieren aprobación
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN new;
@@ -176,7 +177,6 @@ DROP POLICY IF EXISTS "Acceso total notas" ON public.notes;
 CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Acceso total perfiles" ON public.profiles;
--- Permitir acceso público a profiles para evitar bloqueos en el registro
 CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Acceso total config" ON public.app_config;
@@ -277,6 +277,7 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
           avatar: p.avatar,
           age: p.age,
           bio: p.bio,
+          approved: p.approved,
           passwordHash: '',
           salt: ''
         }));

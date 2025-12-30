@@ -16,7 +16,7 @@ const getEnv = (key: string) => {
   return '';
 };
 
-// Helper to map Supabase user to App User type with SELF-HEALING for missing profiles
+// Helper to map Supabase user to App User type
 const mapSupabaseUser = async (sbUser: any): Promise<User | null> => {
   if (!sbUser) return null;
 
@@ -27,42 +27,23 @@ const mapSupabaseUser = async (sbUser: any): Promise<User | null> => {
     .eq('id', sbUser.id)
     .single();
 
-  // 2. SELF-HEALING: If profile is missing (error code PGRST116), create it immediately
-  if (error && (error.code === 'PGRST116' || error.message.includes('0 rows'))) {
-      console.log('⚠️ Perfil no encontrado para usuario existente. Ejecutando auto-reparación...');
-      
-      const newProfile = {
-          id: sbUser.id,
-          name: sbUser.user_metadata?.name || 'Usuario',
-          email: sbUser.email || '',
-          role: 'scout', // Default role
-          organization: '',
-          avatar: ''
-      };
-
-      const { data: createdProfile, error: createError } = await supabase
-          .from('profiles')
-          .upsert(newProfile)
-          .select()
-          .single();
-
-      if (!createError && createdProfile) {
-          console.log('✅ Perfil restaurado exitosamente.');
-          profile = createdProfile;
-      } else {
-          console.error('❌ Falló la auto-reparación del perfil:', createError?.message);
-      }
+  // FIX: Eliminar auto-reparación. Si el perfil no existe, es que fue borrado/bloqueado.
+  // Esto soluciona el problema de que usuarios eliminados puedan volver a entrar.
+  if (error || !profile) {
+      console.warn('⚠️ Perfil no encontrado para usuario autenticado. Posiblemente eliminado.');
+      return null; 
   }
 
   return {
     id: sbUser.id,
     email: sbUser.email || '',
-    name: profile?.name || sbUser.user_metadata?.name || 'Usuario',
-    role: profile?.role || 'scout',
-    organization: profile?.organization || '',
-    avatar: profile?.avatar || '',
-    age: profile?.age,
-    bio: profile?.bio,
+    name: profile.name || sbUser.user_metadata?.name || 'Usuario',
+    role: profile.role || 'scout',
+    organization: profile.organization || '',
+    avatar: profile.avatar || '',
+    age: profile.age,
+    bio: profile.bio,
+    approved: profile.approved, // Check approval status
     passwordHash: '', // Not needed for Supabase
     salt: ''          // Not needed for Supabase
   };
@@ -100,7 +81,19 @@ export const AuthService = {
     }
 
     const user = await mapSupabaseUser(data.user);
-    return { success: true, user: user || undefined };
+
+    // SECURITY CHECK: If user is null (profile deleted) or not approved
+    if (!user) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Esta cuenta ha sido eliminada o desactivada.' };
+    }
+
+    if (!user.approved) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Tu cuenta está pendiente de aprobación por un administrador.' };
+    }
+
+    return { success: true, user: user };
   },
 
   register: async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -120,21 +113,20 @@ export const AuthService = {
     if (error) return { success: false, error: error.message };
 
     // 2. ROBUST INSERT: Use UPSERT instead of INSERT
-    // This prevents errors if the DB Trigger already created the profile
     if (data.user) {
       const { error: profileError } = await supabase.from('profiles').upsert([
         {
           id: data.user.id,
           name: name,
           email: email,
-          role: 'scout', // Default role
+          role: 'scout', 
           organization: '',
+          approved: false // Explicitly unapproved
         }
       ]);
 
       if (profileError) {
         console.error("Error upserting profile record:", profileError);
-        // We allow success because mapSupabaseUser's self-healing will fix it on next login if needed
       }
     }
 
@@ -161,7 +153,14 @@ export const AuthService = {
      
      const { data: { session } } = await supabase.auth.getSession();
      if (!session?.user) return null;
-     return await mapSupabaseUser(session.user);
+     
+     const user = await mapSupabaseUser(session.user);
+     // Re-check validity on session restore
+     if (!user || !user.approved) {
+         await supabase.auth.signOut();
+         return null;
+     }
+     return user;
   },
 
   updateCurrentUser: async (updates: Partial<User> & { newPassword?: string }): Promise<{ success: boolean; user?: User; error?: string }> => {
@@ -236,7 +235,7 @@ export const AuthService = {
 
     if (!newUserId) return { success: false, error: "No se pudo obtener el ID del usuario." };
 
-    // 2. Perform UPSERT into profiles
+    // 2. Perform UPSERT into profiles (Admin created users are APPROVED by default)
     const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -244,11 +243,12 @@ export const AuthService = {
             email: email,
             role: role,
             organization: organization,
-            name: name
+            name: name,
+            approved: true
         });
 
     if (profileError) {
-        return { success: false, error: "Usuario creado en Auth, pero falló el registro en base de datos: " + profileError.message };
+        return { success: false, error: "Usuario creado, pero falló perfil: " + profileError.message };
     }
 
     return { success: true };
@@ -257,13 +257,14 @@ export const AuthService = {
   adminUpdateUser: async (userId: string, updates: any) => {
      if (!isSupabaseConfigured) return { success: false, error: 'Error de configuración.' };
      
-     // 1. Update Profile Data
+     // 1. Update Profile Data including approval status
      const { error } = await supabase
       .from('profiles')
       .update({
           name: updates.name,
           role: updates.role,
-          organization: updates.organization
+          organization: updates.organization,
+          approved: updates.approved
       })
       .eq('id', userId);
      
@@ -273,7 +274,7 @@ export const AuthService = {
      if (updates.newPassword) {
          return { 
              success: true, 
-             error: "Datos actualizados, pero la contraseña no se cambió. El usuario debe usar 'Olvidé mi contraseña' o cambiarla desde su perfil." 
+             error: "Datos actualizados, pero la contraseña no se cambió (requiere cambio por parte del usuario)." 
          };
      }
 

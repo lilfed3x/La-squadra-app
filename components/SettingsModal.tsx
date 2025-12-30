@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AppSettings, User } from '../types';
-import { X, Save, Layout, Type, Image as ImageIcon, Upload, Trash2, AlertTriangle, Users, Plus, Edit2, Shield, Search } from 'lucide-react';
+import { X, Save, Layout, Type, Image as ImageIcon, Upload, Trash2, AlertTriangle, Users, Plus, Edit2, Shield, Search, CheckCircle, XCircle } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AuthService } from '../services/authService';
 
@@ -31,6 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
   const [userFormPassword, setUserFormPassword] = useState('');
   const [userFormRole, setUserFormRole] = useState<'admin' | 'scout'>('scout');
   const [userFormOrg, setUserFormOrg] = useState('');
+  const [userFormApproved, setUserFormApproved] = useState(false);
   const [userFormError, setUserFormError] = useState<string | null>(null);
 
   const isAdmin = currentUser.role === 'admin';
@@ -90,6 +92,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
       setUserFormPassword('');
       setUserFormRole('scout');
       setUserFormOrg('');
+      setUserFormApproved(true); // Admin created users default to approved
       setUserFormError(null);
       setIsUserFormOpen(true);
   };
@@ -101,6 +104,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
       setUserFormPassword(''); // Empty means no change
       setUserFormRole(user.role);
       setUserFormOrg(user.organization || '');
+      setUserFormApproved(user.approved !== false); // Default true if undefined
       setUserFormError(null);
       setIsUserFormOpen(true);
   };
@@ -110,9 +114,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
           alert("No puedes eliminar tu propia cuenta desde aquí.");
           return;
       }
-      if (window.confirm("¿Estás seguro de eliminar este usuario? Perderá acceso inmediato.")) {
+      if (window.confirm("¿Estás seguro de eliminar este usuario? Perderá acceso inmediato a la plataforma.")) {
           dataService.deleteUser(userId);
           refreshUsers();
+      }
+  };
+
+  const handleToggleApproval = async (user: User) => {
+      if (user.id === currentUser.id) return;
+      
+      const newStatus = !user.approved;
+      try {
+          await AuthService.adminUpdateUser(user.id, { approved: newStatus });
+          refreshUsers();
+      } catch (e) {
+          console.error(e);
       }
   };
 
@@ -127,7 +143,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                   name: userFormName,
                   email: userFormEmail,
                   role: userFormRole,
-                  organization: userFormOrg
+                  organization: userFormOrg,
+                  approved: userFormApproved
               };
               if (userFormPassword.trim()) {
                   updates.newPassword = userFormPassword;
@@ -336,7 +353,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                    <thead className="bg-scout-800 text-scout-400 uppercase text-xs font-bold">
                                        <tr>
                                            <th className="px-4 py-3">Usuario</th>
-                                           <th className="px-4 py-3">Rol</th>
+                                           <th className="px-4 py-3">Rol / Estado</th>
                                            <th className="px-4 py-3">Org</th>
                                            <th className="px-4 py-3 text-right">Acciones</th>
                                        </tr>
@@ -354,13 +371,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                                    </div>
                                                </td>
                                                <td className="px-4 py-3">
-                                                   <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${user.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                       {user.role}
-                                                   </span>
+                                                   <div className="flex items-center gap-2">
+                                                       <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${user.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                           {user.role}
+                                                       </span>
+                                                       {user.approved === false ? (
+                                                           <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-yellow-500/20 text-yellow-400 flex items-center gap-1">
+                                                               <AlertTriangle className="w-3 h-3" /> Pendiente
+                                                           </span>
+                                                       ) : (
+                                                           <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-green-500/20 text-green-400 flex items-center gap-1">
+                                                               <CheckCircle className="w-3 h-3" /> Aprobado
+                                                           </span>
+                                                       )}
+                                                   </div>
                                                </td>
                                                <td className="px-4 py-3 text-scout-400">{user.organization || '-'}</td>
                                                <td className="px-4 py-3 text-right">
                                                    <div className="flex justify-end gap-2">
+                                                       {user.id !== currentUser.id && user.approved === false && (
+                                                           <button 
+                                                             type="button"
+                                                             onClick={() => handleToggleApproval(user)}
+                                                             className="p-1.5 bg-green-500/10 hover:bg-green-500/30 text-green-400 rounded transition-colors"
+                                                             title="Aprobar Acceso"
+                                                           >
+                                                               <CheckCircle className="w-4 h-4" />
+                                                           </button>
+                                                       )}
                                                        <button 
                                                          type="button"
                                                          onClick={() => openEditUser(user)}
@@ -436,17 +474,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                      </p>
                                  </div>
 
-                                 <div>
-                                     <label className="block text-xs text-scout-400 mb-1">Rol de Sistema</label>
-                                     <div className="flex gap-4">
-                                         <label className="flex items-center gap-2 cursor-pointer">
-                                             <input type="radio" name="role" value="scout" checked={userFormRole === 'scout'} onChange={() => setUserFormRole('scout')} className="text-scout-gold focus:ring-scout-gold bg-scout-900 border-scout-700" />
-                                             <span className="text-sm text-white">Scout</span>
-                                         </label>
-                                         <label className="flex items-center gap-2 cursor-pointer">
-                                             <input type="radio" name="role" value="admin" checked={userFormRole === 'admin'} onChange={() => setUserFormRole('admin')} className="text-purple-500 focus:ring-purple-500 bg-scout-900 border-scout-700" />
-                                             <span className="text-sm text-white">Administrador</span>
-                                         </label>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                         <label className="block text-xs text-scout-400 mb-1">Rol de Sistema</label>
+                                         <div className="flex flex-col gap-2">
+                                             <label className="flex items-center gap-2 cursor-pointer">
+                                                 <input type="radio" name="role" value="scout" checked={userFormRole === 'scout'} onChange={() => setUserFormRole('scout')} className="text-scout-gold focus:ring-scout-gold bg-scout-900 border-scout-700" />
+                                                 <span className="text-sm text-white">Scout</span>
+                                             </label>
+                                             <label className="flex items-center gap-2 cursor-pointer">
+                                                 <input type="radio" name="role" value="admin" checked={userFormRole === 'admin'} onChange={() => setUserFormRole('admin')} className="text-purple-500 focus:ring-purple-500 bg-scout-900 border-scout-700" />
+                                                 <span className="text-sm text-white">Administrador</span>
+                                             </label>
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <label className="block text-xs text-scout-400 mb-1">Estado de Acceso</label>
+                                         <div className="flex flex-col gap-2">
+                                             <label className="flex items-center gap-2 cursor-pointer">
+                                                 <input type="checkbox" checked={userFormApproved} onChange={(e) => setUserFormApproved(e.target.checked)} className="rounded border-scout-700 bg-scout-900 text-green-500 focus:ring-green-500" />
+                                                 <span className={`text-sm ${userFormApproved ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                     {userFormApproved ? 'Aprobado (Acceso Permitido)' : 'Pendiente (Acceso Denegado)'}
+                                                 </span>
+                                             </label>
+                                         </div>
                                      </div>
                                  </div>
 

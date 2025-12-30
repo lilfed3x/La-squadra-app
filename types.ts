@@ -21,6 +21,7 @@ export interface User {
   organization?: string; // Team/Club
   age?: number;
   bio?: string;
+  approved?: boolean; // New approval field
 }
 
 export interface AppSettings {
