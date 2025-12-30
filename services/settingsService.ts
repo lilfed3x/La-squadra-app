@@ -4,7 +4,7 @@ const SETTINGS_KEY = 'lasquadra_app_settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
   appName: 'LA SQUADRA',
-  appLogoUrl: '', // Empty string implies default SVG
+  appLogoUrl: '/pwa-icon.png', // Default to local PWA icon
   launchAtStartup: false,
   minimizeToTray: false
 };
