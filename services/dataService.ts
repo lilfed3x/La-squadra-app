@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Player, Note, User, AppSettings } from '../types';
 
 // ==========================================
-// DATA MAPPERS (DB snake_case <-> App camelCase)
+// DATA MAPPERS
 // ==========================================
 
 const mapPlayerFromDB = (p: any): Player => ({
@@ -34,7 +34,9 @@ const mapNoteFromDB = (n: any): Note => ({
   tags: n.tags || [],
   attachments: n.attachments || [], 
   timestamp: n.timestamp ? Number(n.timestamp) : Date.now(),
-  isEdited: n.is_edited
+  isEdited: n.is_edited,
+  comments: n.comments || [],
+  likes: n.likes || []
 });
 
 // ==========================================
@@ -63,20 +65,14 @@ class DataService {
         try {
             this.settings = { ...this.settings, ...JSON.parse(stored) };
         } catch (e) {
-            console.error("Error loading settings from storage", e);
+            console.error("Error loading settings", e);
         }
     }
     this.init();
   }
 
   public getSetupSQL(): string {
-    return `-- INSTRUCCIONES CRÍTICAS PARA QUE FUNCIONE EL REGISTRO:
--- 1. Copia TODO este bloque.
--- 2. Ve al Dashboard de Supabase -> SQL Editor.
--- 3. Pega y ejecuta (Run).
-
--- === TABLAS PRINCIPALES ===
-
+    return `-- SQL SETUP (Simplificado) --
 CREATE TABLE IF NOT EXISTS public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -105,6 +101,8 @@ CREATE TABLE IF NOT EXISTS public.notes (
   category TEXT,
   tags TEXT[] DEFAULT '{}',
   attachments JSONB DEFAULT '[]'::jsonb,
+  comments JSONB DEFAULT '[]'::jsonb, 
+  likes JSONB DEFAULT '[]'::jsonb,   
   timestamp BIGINT,
   is_edited BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -127,60 +125,28 @@ CREATE TABLE IF NOT EXISTS public.app_config (
   app_name TEXT DEFAULT 'LA SQUADRA',
   app_logo_url TEXT
 );
-
--- INSERTAR CONFIGURACIÓN INICIAL
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
--- === AUTOMATIZACIÓN (TRIGGERS) ===
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, name, email, role, approved)
-  VALUES (
-    new.id, 
-    COALESCE(new.raw_user_meta_data->>'name', 'Nuevo Usuario'),
-    new.email,
-    'scout',
-    false -- Nuevos usuarios requieren aprobación
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-
--- === TIEMPO REAL (REPLICACIÓN) ===
-ALTER TABLE public.players REPLICA IDENTITY FULL;
-ALTER TABLE public.notes REPLICA IDENTITY FULL;
-ALTER TABLE public.profiles REPLICA IDENTITY FULL;
-
-ALTER PUBLICATION supabase_realtime ADD TABLE public.players;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notes;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.app_config;
-
--- === POLÍTICAS DE SEGURIDAD (RLS) ===
+-- Policies --
 ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
--- Políticas permisivas (Necesarias para que la app pueda auto-repararse)
-DROP POLICY IF EXISTS "Acceso total jugadores" ON public.players;
-CREATE POLICY "Acceso total jugadores" ON public.players FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access" ON public.players;
+CREATE POLICY "Public Access" ON public.players FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Notes" ON public.notes;
+CREATE POLICY "Public Access Notes" ON public.notes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Profiles" ON public.profiles;
+CREATE POLICY "Public Access Profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Config" ON public.app_config;
+CREATE POLICY "Public Access Config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Acceso total notas" ON public.notes;
-CREATE POLICY "Acceso total notas" ON public.notes FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Acceso total perfiles" ON public.profiles;
-CREATE POLICY "Acceso total perfiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Acceso total config" ON public.app_config;
-CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);`;
+-- Realtime --
+ALTER TABLE public.players REPLICA IDENTITY FULL;
+DROP PUBLICATION IF EXISTS supabase_realtime;
+CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, public.profiles, public.app_config;
+`;
   }
 
   private async init() {
@@ -189,19 +155,17 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
     await this.refreshAll();
     this.initialized = true;
 
-    // Configurar suscripciones realtime con logs para depuración
+    // Suscripciones Realtime
     supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
-        console.log('Realtime Player Event:', payload.eventType);
+        // Si el evento viene de mi propia acción (insert/delete), ya lo actualicé localmente.
+        // Pero para sincronizar con otros, hacemos fetch.
         this.fetchPlayers();
       })
       .subscribe();
       
     supabase.channel('public:notes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
-        console.log('Realtime Note Event:', payload.eventType);
-        this.fetchNotes();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => this.fetchNotes())
       .subscribe();
 
     supabase.channel('public:profiles')
@@ -211,6 +175,15 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
     supabase.channel('public:app_config')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => this.fetchSettings())
       .subscribe();
+  }
+
+  public subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(l => l());
   }
 
   public async refreshAll() {
@@ -230,8 +203,7 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
           .order('created_at', { ascending: false });
           
       if (error) {
-        console.warn('⚠️ Error fetching players:', error.message);
-        if (error.message.includes("does not exist") || error.code === '42P01') {
+        if (error.message.includes("does not exist")) {
           this.dbError = "TABLAS_FALTANTES";
         } else {
           this.dbError = error.message;
@@ -246,18 +218,14 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
         this.notifyListeners();
       }
     } catch (err) {
-      console.error('Fatal fetch error:', err);
+      console.error('Fetch error:', err);
     }
   }
 
   private async fetchNotes() {
     try {
-      const { data, error } = await supabase
-          .from('notes')
-          .select('*')
-          .order('timestamp', { ascending: false });
-
-      if (!error && data) {
+      const { data } = await supabase.from('notes').select('*').order('timestamp', { ascending: false });
+      if (data) {
         this.notes = data.map(mapNoteFromDB);
         this.notifyListeners();
       }
@@ -266,8 +234,8 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
 
   private async fetchUsers() {
     try {
-      const { data, error } = await supabase.from('profiles').select('*');
-      if (!error && data) {
+      const { data } = await supabase.from('profiles').select('*');
+      if (data) {
         this.users = data.map((p: any) => ({
           id: p.id,
           email: p.email || '',
@@ -290,13 +258,7 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
     try {
       const { data } = await supabase.from('app_config').select('*').eq('id', 1).maybeSingle();
       if (data) {
-          this.settings = {
-              ...this.settings,
-              appName: data.app_name || this.settings.appName,
-              appLogoUrl: data.app_logo_url || this.settings.appLogoUrl
-          };
-          localStorage.setItem('lasquadra_app_settings', JSON.stringify(this.settings));
-          document.title = this.settings.appName;
+          this.settings = { ...this.settings, appName: data.app_name, appLogoUrl: data.app_logo_url };
           this.notifyListeners();
       }
     } catch (e) {}
@@ -307,9 +269,10 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
   public getUsers(): User[] { return this.users; }
   public getSettings(): AppSettings { return this.settings; }
 
-  // --- WRITE OPERATIONS (Modified for Immediate Updates) ---
+  // --- WRITE OPERATIONS (Optimistic) ---
 
   public async addPlayer(player: Player) {
+    // 1. Crear objeto DB
     const dbPlayer = {
       name: player.name,
       team: player.team,
@@ -328,13 +291,25 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       nutrition: player.nutrition
     };
     
-    const { error } = await supabase.from('players').insert([dbPlayer]);
+    // 2. ACTUALIZACIÓN OPTIMISTA: Agregar localmente antes de que la DB responda
+    // Asignamos un ID temporal si es necesario, aunque en refresh se sobrescribirá
+    const tempPlayer = { ...player, id: player.id.startsWith('temp') ? player.id : 'temp-' + Date.now() };
+    this.players = [tempPlayer, ...this.players]; 
+    this.notifyListeners(); // Actualizar UI inmediatamente
+
+    // 3. Insertar en DB
+    const { data, error } = await supabase.from('players').insert([dbPlayer]).select();
     
     if (error) {
-        console.error("Error adding player:", error.message);
-        alert("Error al guardar jugador: " + error.message);
-    } else {
-        this.fetchPlayers(); // Immediate fetch
+        alert("Error al guardar: " + error.message);
+        // Revertir si falla
+        this.players = this.players.filter(p => p.id !== tempPlayer.id);
+        this.notifyListeners();
+    } else if (data && data[0]) {
+        // Reemplazar el temporal con el real de la DB
+        const realPlayer = mapPlayerFromDB(data[0]);
+        this.players = this.players.map(p => p.id === tempPlayer.id ? realPlayer : p);
+        this.notifyListeners();
     }
   }
 
@@ -357,31 +332,37 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       nutrition: player.nutrition
     };
     
+    // Optimistic Update
+    this.players = this.players.map(p => p.id === player.id ? player : p);
+    this.notifyListeners();
+
     const { error } = await supabase.from('players').update(dbPlayer).eq('id', player.id);
-    
     if (error) {
-        console.error("Error updating player:", error.message);
-        alert("Error al actualizar: " + error.message);
-    } else {
-        this.fetchPlayers(); // Immediate fetch
+        console.error(error);
+        this.fetchPlayers(); // Revertir
     }
   }
 
   public async deletePlayer(id: string) {
+    // 1. Optimistic Delete
+    const originalList = [...this.players];
+    this.players = this.players.filter(p => p.id !== id);
+    this.notifyListeners();
+
+    // 2. DB Delete
     const { error } = await supabase.from('players').delete().eq('id', id);
+    
     if (error) {
-        console.error("Error deleting player:", error.message);
-    } else {
-        this.fetchPlayers();
-        // Also clean up local notes related to this player immediately
-        this.notes = this.notes.filter(n => n.playerId !== id);
+        alert("Error al eliminar: " + error.message);
+        this.players = originalList; // Revertir
         this.notifyListeners();
     }
   }
 
   public async clearPlayers() {
+    this.players = [];
+    this.notifyListeners();
     await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    this.fetchPlayers();
   }
 
   public async addNote(note: Note) {
@@ -395,62 +376,62 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       timestamp: note.timestamp,
       is_edited: false
     };
-    
-    const { error } = await supabase.from('notes').insert([dbNote]);
-    
+
+    // Optimistic
+    this.notes = [note, ...this.notes];
+    this.notifyListeners();
+
+    const { data, error } = await supabase.from('notes').insert([dbNote]).select();
     if (error) {
-        console.error("Error adding note:", error.message);
-        alert("Error al guardar nota: " + error.message);
-    } else {
-        this.fetchNotes();
+         this.notes = this.notes.filter(n => n.id !== note.id);
+         this.notifyListeners();
+    } else if (data && data[0]) {
+         const realNote = mapNoteFromDB(data[0]);
+         this.notes = this.notes.map(n => n.id === note.id ? realNote : n);
+         this.notifyListeners();
     }
   }
 
   public async updateNote(note: Note) {
-    const { error } = await supabase.from('notes').update({
-       content: note.content,
-       category: note.category,
-       tags: note.tags,
-       is_edited: true,
-       attachments: note.attachments
-    }).eq('id', note.id);
+    const dbNote = {
+      content: note.content,
+      category: note.category,
+      tags: note.tags,
+      attachments: note.attachments,
+      is_edited: true
+    };
+    
+    this.notes = this.notes.map(n => n.id === note.id ? note : n);
+    this.notifyListeners();
 
-    if (error) {
-        console.error("Error updating note:", error.message);
-    } else {
-        this.fetchNotes();
-    }
+    await supabase.from('notes').update(dbNote).eq('id', note.id);
   }
 
   public async deleteNote(id: string) {
-    const { error } = await supabase.from('notes').delete().eq('id', id);
-    if (error) console.error(error);
-    else this.fetchNotes();
+    this.notes = this.notes.filter(n => n.id !== id);
+    this.notifyListeners();
+    await supabase.from('notes').delete().eq('id', id);
   }
 
-  public async deleteUser(id: string) {
-     const { error } = await supabase.from('profiles').delete().eq('id', id);
-     if (error) console.error(error);
-     else this.fetchUsers();
+  public async saveSettings(newSettings: AppSettings) {
+    this.settings = newSettings;
+    localStorage.setItem('lasquadra_app_settings', JSON.stringify(newSettings));
+    document.title = newSettings.appName;
+    this.notifyListeners();
+
+    await supabase.from('app_config').upsert({
+       id: 1,
+       app_name: newSettings.appName,
+       app_logo_url: newSettings.appLogoUrl
+    });
   }
 
-  public async saveSettings(s: AppSettings) {
-      this.settings = s;
-      localStorage.setItem('lasquadra_app_settings', JSON.stringify(s));
-      document.title = s.appName;
-      
-      const { error } = await supabase.from('app_config').upsert({ id: 1, app_name: s.appName, app_logo_url: s.appLogoUrl });
-      if (error) console.error("Error saving settings:", error);
-      else this.notifyListeners();
-  }
-  
-  public subscribe(listener: () => void) {
-    this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
-  }
-
-  private notifyListeners() {
-    this.listeners.forEach(l => l());
+  public async deleteUser(userId: string) {
+      this.users = this.users.filter(u => u.id !== userId);
+      this.notifyListeners();
+      await supabase.from('profiles').delete().eq('id', userId);
+      // Nota: auth.users no se puede borrar desde el cliente sin una Edge Function de admin,
+      // pero borrar el perfil bloquea el acceso en la app.
   }
 }
 

@@ -56,6 +56,8 @@ export interface Note {
   tags: string[];
   attachments: Attachment[];
   isEdited?: boolean;
+  comments?: any[];
+  likes?: string[];
 }
 
 export interface PlayerStats {
