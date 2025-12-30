@@ -1,6 +1,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Player, Note, User, AppSettings } from '../types';
+import { Player, Note, User, AppSettings, NoteComment } from '../types';
+import { nanoid } from 'nanoid';
 
 // ==========================================
 // DATA MAPPERS (DB snake_case <-> App camelCase)
@@ -34,7 +35,9 @@ const mapNoteFromDB = (n: any): Note => ({
   tags: n.tags || [],
   attachments: n.attachments || [], 
   timestamp: n.timestamp ? Number(n.timestamp) : Date.now(),
-  isEdited: n.is_edited
+  isEdited: n.is_edited,
+  comments: n.comments || [],
+  likes: n.likes || []
 });
 
 // ==========================================
@@ -108,10 +111,23 @@ CREATE TABLE IF NOT EXISTS public.notes (
   category TEXT,
   tags TEXT[] DEFAULT '{}',
   attachments JSONB DEFAULT '[]'::jsonb,
+  comments JSONB DEFAULT '[]'::jsonb,
+  likes JSONB DEFAULT '[]'::jsonb,
   timestamp BIGINT,
   is_edited BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- MIGRACIÓN PARA TABLAS EXISTENTES (Si la tabla ya existe sin estas columnas)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='notes' AND column_name='comments') THEN
+        ALTER TABLE public.notes ADD COLUMN comments JSONB DEFAULT '[]'::jsonb;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='notes' AND column_name='likes') THEN
+        ALTER TABLE public.notes ADD COLUMN likes JSONB DEFAULT '[]'::jsonb;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -395,6 +411,8 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
       category: note.category,
       tags: note.tags,
       attachments: note.attachments,
+      comments: [],
+      likes: [],
       timestamp: note.timestamp,
       is_edited: false
     };
@@ -422,6 +440,70 @@ CREATE POLICY "Acceso total config" ON public.app_config FOR ALL USING (true) WI
         console.error("Error updating note:", error.message);
     } else {
         this.fetchNotes();
+    }
+  }
+
+  // --- FEEDBACK SYSTEM METHODS ---
+
+  public async addNoteComment(noteId: string, content: string, userId: string) {
+    // 1. Get current note to append comment
+    const currentNote = this.notes.find(n => n.id === noteId);
+    if (!currentNote) return;
+
+    const newComment: NoteComment = {
+        id: nanoid(),
+        userId: userId,
+        content: content,
+        timestamp: Date.now()
+    };
+
+    const updatedComments = [...(currentNote.comments || []), newComment];
+
+    // 2. Optimistic Update
+    const updatedNote = { ...currentNote, comments: updatedComments };
+    this.notes = this.notes.map(n => n.id === noteId ? updatedNote : n);
+    this.notifyListeners();
+
+    // 3. Persist
+    const { error } = await supabase
+        .from('notes')
+        .update({ comments: updatedComments })
+        .eq('id', noteId);
+
+    if (error) {
+        console.error("Error adding comment:", error);
+        this.fetchNotes(); // Revert on error
+    }
+  }
+
+  public async toggleNoteLike(noteId: string, userId: string) {
+    // 1. Get current note
+    const currentNote = this.notes.find(n => n.id === noteId);
+    if (!currentNote) return;
+
+    const likes = currentNote.likes || [];
+    let updatedLikes;
+    
+    if (likes.includes(userId)) {
+        updatedLikes = likes.filter(id => id !== userId);
+    } else {
+        updatedLikes = [...likes, userId];
+    }
+
+    // 2. Optimistic Update
+    const updatedNote = { ...currentNote, likes: updatedLikes };
+    this.notes = this.notes.map(n => n.id === noteId ? updatedNote : n);
+    this.notifyListeners();
+
+    // 3. Persist
+    const { error } = await supabase
+        .from('notes')
+        .update({ likes: updatedLikes })
+        .eq('id', noteId);
+
+    if (error) {
+        console.error("Error toggling like:", error);
+        this.fetchNotes(); // Revert
     }
   }
 

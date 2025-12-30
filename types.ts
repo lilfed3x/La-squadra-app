@@ -52,6 +52,13 @@ export interface Attachment {
   name: string;
 }
 
+export interface NoteComment {
+  id: string;
+  userId: string;
+  content: string;
+  timestamp: number;
+}
+
 export interface Note {
   id: string;
   playerId: string;
@@ -62,6 +69,8 @@ export interface Note {
   tags: string[];
   attachments: Attachment[];
   isEdited?: boolean;
+  comments?: NoteComment[]; // New: Threaded feedback
+  likes?: string[]; // New: List of user IDs who liked/acknowledged
 }
 
 export interface PlayerStats {

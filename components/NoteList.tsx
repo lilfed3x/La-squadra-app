@@ -1,7 +1,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { Note, NoteCategory, User, Attachment } from '../types';
-import { Clock, Filter, Search, Tag, SlidersHorizontal, Image as ImageIcon, Film, Trash2, Edit2, Youtube } from 'lucide-react';
+import { Clock, Filter, Search, Tag, SlidersHorizontal, Film, Trash2, Edit2, Youtube, ThumbsUp, MessageCircle, Send } from 'lucide-react';
+import { dataService } from '../services/dataService';
 
 interface NoteListProps {
   notes: Note[];
@@ -15,7 +16,7 @@ interface NoteListProps {
   onDeleteNote?: (noteId: string) => void;
 }
 
-// Helper to extract YouTube ID (duplicated here to avoid prop drilling complex utils, or could be moved to shared file)
+// Helper to extract YouTube ID
 const getYoutubeId = (url: string) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
@@ -36,6 +37,10 @@ export const NoteList: React.FC<NoteListProps> = ({
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [filterAuthor, setFilterAuthor] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Feedback Interaction State
+  const [activeCommentNoteId, setActiveCommentNoteId] = useState<string | null>(null);
+  const [commentInput, setCommentInput] = useState('');
 
   const filteredNotes = useMemo(() => {
     let result = notes.filter((note) => {
@@ -60,12 +65,12 @@ export const NoteList: React.FC<NoteListProps> = ({
     }).format(new Date(timestamp));
   };
 
-  const getScoutDetails = (scoutId: string) => {
-    const scout = allUsers.find(u => u.id === scoutId);
-    if (scout) {
-        return { name: scout.name, avatar: scout.avatar || '' };
+  const getUserDetails = (userId: string) => {
+    const user = allUsers.find(u => u.id === userId);
+    if (user) {
+        return { name: user.name, avatar: user.avatar || '' };
     }
-    return { name: 'Scout Desconocido', avatar: '' };
+    return { name: 'Usuario Desconocido', avatar: '' };
   };
 
   const getCategoryColor = (cat: NoteCategory) => {
@@ -115,11 +120,32 @@ export const NoteList: React.FC<NoteListProps> = ({
       if (att.type === 'youtube') {
           window.open(att.url, '_blank');
       } else {
-          // Default behavior for images/videos (could open a modal light box in future)
           const w = window.open('about:blank');
           if (w) {
               w.document.write(`<img src="${att.url}" style="max-width:100%; height:auto;">`);
           }
+      }
+  };
+
+  const handleToggleLike = (noteId: string) => {
+      if (currentUser) {
+          dataService.toggleNoteLike(noteId, currentUser.id);
+      }
+  };
+
+  const handleAddComment = (e: React.FormEvent, noteId: string) => {
+      e.preventDefault();
+      if (currentUser && commentInput.trim()) {
+          dataService.addNoteComment(noteId, commentInput, currentUser.id);
+          setCommentInput('');
+      }
+  };
+
+  const toggleCommentSection = (noteId: string) => {
+      if (activeCommentNoteId === noteId) {
+          setActiveCommentNoteId(null);
+      } else {
+          setActiveCommentNoteId(noteId);
       }
   };
 
@@ -203,90 +229,165 @@ export const NoteList: React.FC<NoteListProps> = ({
           </div>
         ) : (
           filteredNotes.map((note) => {
-            const scout = getScoutDetails(note.scoutId);
-            // Permission check: Edit/Delete only if current user is the author
+            const scout = getUserDetails(note.scoutId);
             const isOwner = currentUser && note.scoutId === currentUser.id;
+            const likeCount = note.likes?.length || 0;
+            const isLiked = currentUser && note.likes?.includes(currentUser.id);
+            const commentCount = note.comments?.length || 0;
+            const areCommentsOpen = activeCommentNoteId === note.id;
 
             return (
-              <div key={note.id} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-scout-600 transition-all group animate-slideIn relative">
+              <div key={note.id} className="bg-scout-800 rounded-xl border border-scout-700 hover:border-scout-600 transition-all group animate-slideIn relative flex flex-col">
                 
-                {/* Edit/Delete Actions */}
-                {isOwner && (
-                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      <button 
-                        onClick={() => onEditNote && onEditNote(note)}
-                        className="p-1.5 bg-scout-700 hover:bg-blue-500/20 text-scout-400 hover:text-blue-400 rounded-md transition-colors"
-                        title="Editar Nota"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button 
-                        onClick={() => onDeleteNote && onDeleteNote(note.id)}
-                        className="p-1.5 bg-scout-700 hover:bg-red-500/20 text-scout-400 hover:text-red-400 rounded-md transition-colors"
-                        title="Eliminar Nota"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                   </div>
-                )}
-
-                <div className="flex justify-between items-start mb-2 pr-16">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getCategoryColor(note.category)}`}>
-                      {note.category}
-                    </span>
-                    <div className="flex items-center gap-1 text-xs text-scout-500">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatDate(note.timestamp)}</span>
+                {/* Note Header & Content Container */}
+                <div className="p-4 pb-2">
+                    {isOwner && (
+                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button 
+                            onClick={() => onEditNote && onEditNote(note)}
+                            className="p-1.5 bg-scout-700 hover:bg-blue-500/20 text-scout-400 hover:text-blue-400 rounded-md transition-colors"
+                            title="Editar Nota"
+                        >
+                            <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button 
+                            onClick={() => onDeleteNote && onDeleteNote(note.id)}
+                            className="p-1.5 bg-scout-700 hover:bg-red-500/20 text-scout-400 hover:text-red-400 rounded-md transition-colors"
+                            title="Eliminar Nota"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                        </button>
                     </div>
-                  </div>
+                    )}
+
+                    <div className="flex justify-between items-start mb-2 pr-16">
+                        <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getCategoryColor(note.category)}`}>
+                            {note.category}
+                            </span>
+                            <div className="flex items-center gap-1 text-xs text-scout-500">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatDate(note.timestamp)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p className="text-scout-100 text-sm leading-relaxed whitespace-pre-wrap mb-3">
+                        {note.content}
+                    </p>
+
+                    {/* Attachments */}
+                    {note.attachments && note.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {note.attachments.map(att => (
+                            <div 
+                                key={att.id} 
+                                onClick={() => handleAttachmentClick(att)}
+                                className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media cursor-pointer hover:border-scout-accent transition-colors"
+                            >
+                                {renderAttachment(att)}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-white text-xs font-medium">{att.type === 'youtube' ? 'Abrir' : 'Ver'}</span>
+                                </div>
+                            </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between mt-2">
+                        <div className="flex flex-wrap gap-2">
+                            {note.tags.map(tag => (
+                            <span key={tag} className="flex items-center gap-1 text-[10px] text-scout-400 bg-scout-900/50 px-1.5 py-0.5 rounded border border-scout-700">
+                                <Tag className="w-2.5 h-2.5" />
+                                {tag}
+                            </span>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2 ml-auto pl-4">
+                            <div className="text-right">
+                                <span className="text-[10px] text-scout-500 font-medium block leading-tight">{scout.name}</span>
+                                <span className="text-[9px] text-scout-600 leading-tight">Scout</span>
+                            </div>
+                            {scout.avatar ? (
+                            <img src={scout.avatar} alt={scout.name} className="w-6 h-6 rounded-full border border-scout-600" />
+                            ) : (
+                            <div className="w-6 h-6 rounded-full bg-scout-600 flex items-center justify-center text-[10px] text-white">
+                                {scout.name.charAt(0)}
+                            </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                <p className="text-scout-100 text-sm leading-relaxed whitespace-pre-wrap mb-3">
-                  {note.content}
-                </p>
-
-                {/* Attachments Grid */}
-                {note.attachments && note.attachments.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {note.attachments.map(att => (
-                      <div 
-                        key={att.id} 
-                        onClick={() => handleAttachmentClick(att)}
-                        className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media cursor-pointer hover:border-scout-accent transition-colors"
-                      >
-                        {renderAttachment(att)}
+                {/* Interaction Footer */}
+                <div className="border-t border-scout-700/50 bg-scout-800/50 rounded-b-xl">
+                    <div className="px-4 py-2 flex items-center gap-4">
+                        <button 
+                            onClick={() => handleToggleLike(note.id)}
+                            className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${isLiked ? 'text-blue-400' : 'text-scout-400 hover:text-blue-400'}`}
+                        >
+                            <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
+                            {likeCount > 0 && <span>{likeCount}</span>}
+                            <span className="hidden sm:inline">Aprobar</span>
+                        </button>
                         
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">{att.type === 'youtube' ? 'Abrir' : 'Ver'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between border-t border-scout-700/50 pt-3 mt-2">
-                   <div className="flex flex-wrap gap-2">
-                    {note.tags.map(tag => (
-                      <span key={tag} className="flex items-center gap-1 text-[10px] text-scout-400 bg-scout-900/50 px-1.5 py-0.5 rounded border border-scout-700">
-                        <Tag className="w-2.5 h-2.5" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 ml-auto pl-4">
-                    <div className="text-right">
-                       <span className="text-[10px] text-scout-500 font-medium block leading-tight">{scout.name}</span>
-                       <span className="text-[9px] text-scout-600 leading-tight">Scout</span>
+                        <button 
+                            onClick={() => toggleCommentSection(note.id)}
+                            className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${areCommentsOpen ? 'text-scout-100' : 'text-scout-400 hover:text-white'}`}
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            {commentCount > 0 && <span>{commentCount}</span>}
+                            <span className="hidden sm:inline">Comentar</span>
+                        </button>
                     </div>
-                    {scout.avatar ? (
-                      <img src={scout.avatar} alt={scout.name} className="w-6 h-6 rounded-full border border-scout-600" />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-scout-600 flex items-center justify-center text-[10px] text-white">
-                        {scout.name.charAt(0)}
-                      </div>
+
+                    {/* Comments Section */}
+                    {areCommentsOpen && (
+                        <div className="bg-scout-900/40 border-t border-scout-700/50 p-3 rounded-b-xl animate-fadeIn">
+                             
+                             {/* Comment Thread */}
+                             {note.comments && note.comments.length > 0 ? (
+                                 <div className="space-y-3 mb-3 pl-1 max-h-40 overflow-y-auto custom-scrollbar">
+                                     {note.comments.map(comment => {
+                                         const author = getUserDetails(comment.userId);
+                                         return (
+                                             <div key={comment.id} className="flex gap-2 items-start text-xs">
+                                                 <img src={author.avatar || `https://ui-avatars.com/api/?name=${author.name}`} className="w-5 h-5 rounded-full mt-0.5" />
+                                                 <div className="flex-1">
+                                                     <div className="flex items-baseline gap-2">
+                                                         <span className="font-bold text-scout-300">{author.name}</span>
+                                                         <span className="text-[10px] text-scout-600">{formatDate(comment.timestamp)}</span>
+                                                     </div>
+                                                     <p className="text-scout-200 leading-snug">{comment.content}</p>
+                                                 </div>
+                                             </div>
+                                         );
+                                     })}
+                                 </div>
+                             ) : (
+                                 <p className="text-[10px] text-scout-500 italic mb-2 px-1">Se el primero en comentar...</p>
+                             )}
+
+                             {/* Comment Input */}
+                             <form onSubmit={(e) => handleAddComment(e, note.id)} className="flex items-center gap-2">
+                                 <input 
+                                     type="text" 
+                                     value={commentInput}
+                                     onChange={(e) => setCommentInput(e.target.value)}
+                                     placeholder="Escribe una respuesta..."
+                                     className="flex-1 bg-scout-900 border border-scout-700 rounded-full px-3 py-1.5 text-xs text-scout-100 focus:border-scout-500 outline-none"
+                                     autoFocus
+                                 />
+                                 <button 
+                                     type="submit"
+                                     disabled={!commentInput.trim()}
+                                     className="p-1.5 bg-scout-accent text-scout-900 rounded-full hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                 >
+                                     <Send className="w-3.5 h-3.5" />
+                                 </button>
+                             </form>
+                        </div>
                     )}
-                  </div>
                 </div>
               </div>
             );
