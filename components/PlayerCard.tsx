@@ -6,7 +6,7 @@ import { Check } from 'lucide-react';
 interface PlayerCardProps {
   player: Player;
   isActive: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (e: React.MouseEvent) => void;

@@ -250,7 +250,9 @@ const App: React.FC = () => {
   };
 
   const togglePlayerSelection = (playerId: string, e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent opening player details
+      if (e && e.stopPropagation) {
+          e.stopPropagation(); 
+      }
       const newSet = new Set(selectedPlayers);
       if (newSet.has(playerId)) {
           newSet.delete(playerId);
@@ -603,7 +605,7 @@ const App: React.FC = () => {
                                         key={player.id} 
                                         player={player} 
                                         isActive={player.id === activePlayerId} 
-                                        onClick={() => isSelectionMode ? togglePlayerSelection(player.id, {} as any) : handlePlayerSelect(player.id)} 
+                                        onClick={(e) => isSelectionMode ? togglePlayerSelection(player.id, e) : handlePlayerSelect(player.id)} 
                                         isSelectionMode={isSelectionMode}
                                         isSelected={selectedPlayers.has(player.id)}
                                         onToggleSelect={(e) => togglePlayerSelection(player.id, e)}
