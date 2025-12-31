@@ -10,6 +10,7 @@ import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadius
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
 import { ConfirmModal } from './ConfirmModal';
+import { PlayerStatsDashboard } from './PlayerStatsDashboard';
 import { nanoid } from 'nanoid';
 
 interface PlayerProfileProps {
@@ -236,7 +237,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
         description: '',
         severity: 'Baja',
         status: 'Activo',
-        doctorName: '',
+        doctorName: '', // Campo Responsable Médico añadido
         attachments: []
     });
     const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
@@ -314,7 +315,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
             description: newReport.description!,
             severity: newReport.severity as any,
             status: newReport.status as any,
-            doctorName: newReport.doctorName || 'Dr. Equipo',
+            doctorName: newReport.doctorName || 'Dr. Equipo', // Guardar nombre del doctor
             attachments: newReport.attachments || [],
         };
 
@@ -400,6 +401,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
                             </select>
                         </div>
                         <div>
+                            {/* CAMPO MANUAL RESPONSABLE MÉDICO */}
                             <label className="text-[10px] text-scout-400 uppercase font-bold">Responsable Médico</label>
                             <input type="text" placeholder="Ej. Dr. Equipo" value={newReport.doctorName || ''} onChange={e => setNewReport({...newReport, doctorName: e.target.value})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none" />
                         </div>
@@ -457,259 +459,80 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
             {/* CASCADE VIEW WITH SCROLL */}
             <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                 {sortedYears.length === 0 ? (
-                    <div className="text-center py-8 text-scout-500 border border-dashed border-scout-700 rounded-lg">
-                        <ActivityIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Sin historial médico registrado.</p>
+                    <div className="text-center py-8 text-scout-500 italic">
+                        No hay historial médico registrado.
                     </div>
                 ) : (
                     sortedYears.map(year => (
-                        <div key={year} className="border border-scout-700 rounded-xl overflow-hidden bg-scout-800/30">
-                            {/* Year Header (Clickable) */}
-                            <div 
+                        <div key={year} className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
+                            <button 
                                 onClick={() => toggleYear(year)}
-                                className="bg-scout-800 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-scout-700/50 transition-colors border-b border-scout-700 select-none"
+                                className="w-full flex items-center justify-between p-3 bg-scout-900/50 hover:bg-scout-800 transition-colors"
                             >
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-scout-gold" />
-                                    <span className="font-bold text-white text-sm">{year}</span>
-                                </div>
+                                <span className="text-sm font-bold text-white">{year}</span>
                                 {expandedYears[year] ? <ChevronDown className="w-4 h-4 text-scout-400" /> : <ChevronRight className="w-4 h-4 text-scout-400" />}
-                            </div>
+                            </button>
                             
-                            {/* Year Content */}
                             {expandedYears[year] && (
-                                <div className="p-2 space-y-2 animate-fadeIn">
-                                    {Object.entries(groupedReports[year] || {}).map(([month, reports]) => {
-                                        const monthKey = `${year}-${month}`;
-                                        return (
-                                            <div key={month} className="border border-scout-700/50 rounded-lg overflow-hidden bg-scout-900/20">
-                                                {/* Month Header (Clickable) */}
-                                                <div 
-                                                    onClick={() => toggleMonth(monthKey)}
-                                                    className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-scout-800 transition-colors border-b border-scout-700/30"
-                                                >
-                                                    <h5 className="text-xs font-bold text-scout-400 uppercase">{month}</h5>
-                                                    {expandedMonths[monthKey] ? <ChevronDown className="w-3 h-3 text-scout-500" /> : <ChevronRight className="w-3 h-3 text-scout-500" />}
-                                                </div>
-
-                                                {/* Month Content */}
-                                                {expandedMonths[monthKey] && (
-                                                    <div className="p-2 space-y-2 animate-fadeIn">
-                                                        {(reports as MedicalReport[]).map(report => (
-                                                            <div 
-                                                                key={report.id} 
-                                                                onClick={() => onViewReport(report)}
-                                                                className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative cursor-pointer"
-                                                            >
-                                                                <div className="flex justify-between items-start">
-                                                                    <div>
-                                                                        <div className="flex items-center gap-2 mb-1">
-                                                                            <span className={`w-2 h-2 rounded-full ${report.status === 'Activo' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></span>
-                                                                            <h6 className="text-sm font-bold text-white">{report.title}</h6>
-                                                                        </div>
-                                                                        <p className="text-xs text-scout-300 leading-relaxed mb-2 line-clamp-2">{report.description}</p>
-                                                                        <div className="flex items-center gap-3 text-[10px] text-scout-500">
-                                                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(report.date).toLocaleDateString()}</span>
-                                                                            <span className={`px-1.5 py-0.5 rounded border ${report.severity === 'Alta' || report.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>{report.severity}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <button 
-                                                                        onClick={(e) => handleDeleteReport(report.id, e)} 
-                                                                        className="text-scout-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
+                                <div className="border-t border-scout-700">
+                                    {Object.keys(groupedReports[year]).sort().reverse().map(month => (
+                                        <div key={month}>
+                                            <button 
+                                                onClick={() => toggleMonth(`${year}-${month}`)}
+                                                className="w-full flex items-center justify-between px-4 py-2 bg-scout-800/30 hover:bg-scout-800 border-b border-scout-700/50 transition-colors"
+                                            >
+                                                <span className="text-xs font-semibold text-scout-300">{month}</span>
+                                                {expandedMonths[`${year}-${month}`] ? <ChevronDown className="w-3 h-3 text-scout-500" /> : <ChevronRight className="w-3 h-3 text-scout-500" />}
+                                            </button>
+                                            
+                                            {expandedMonths[`${year}-${month}`] && (
+                                                <div className="p-2 space-y-2 bg-black/20">
+                                                    {groupedReports[year][month].map(report => (
+                                                        <div key={report.id} onClick={() => onViewReport(report)} className="bg-scout-900 border border-scout-700 rounded-lg p-3 hover:border-scout-gold/50 cursor-pointer transition-colors relative group">
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <div className="font-bold text-sm text-white">{report.title}</div>
+                                                                <div className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                                                                    report.severity === 'Baja' ? 'bg-green-500/20 text-green-400' :
+                                                                    report.severity === 'Media' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    'bg-red-500/20 text-red-400'
+                                                                }`}>
+                                                                    {report.severity}
                                                                 </div>
-                                                                
-                                                                {/* Attachments */}
-                                                                {report.attachments && report.attachments.length > 0 && (
-                                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto" onClick={(e) => e.stopPropagation()}>
-                                                                        {report.attachments.map(att => (
-                                                                            <AttachmentPreview key={att.id} attachment={att} onClick={() => onViewMedia(att)} />
-                                                                        ))}
-                                                                    </div>
-                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                            <div className="text-xs text-scout-400 mb-2 line-clamp-2">{report.description}</div>
+                                                            <div className="flex justify-between items-center text-[10px] text-scout-500">
+                                                                <span>{report.date}</span>
+                                                                {report.doctorName && <span>Dr: {report.doctorName}</span>}
+                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => handleDeleteReport(report.id, e)}
+                                                                className="absolute top-2 right-2 p-1.5 bg-scout-800 rounded-md text-scout-500 hover:text-red-400 hover:bg-scout-700 opacity-0 group-hover:opacity-100 transition-all"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                            {/* Delete Confirmation Overlay */}
+                                                            {reportToDelete === report.id && (
+                                                                <div className="absolute inset-0 bg-scout-900/90 backdrop-blur-sm flex items-center justify-center gap-2 rounded-lg z-10" onClick={e => e.stopPropagation()}>
+                                                                    <span className="text-xs text-white">¿Eliminar?</span>
+                                                                    <button onClick={executeDeleteReport} className="text-red-400 hover:text-red-300 font-bold text-xs">SÍ</button>
+                                                                    <button onClick={() => setReportToDelete(null)} className="text-scout-400 hover:text-white text-xs">NO</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
                     ))
                 )}
             </div>
-
-            <ConfirmModal 
-                isOpen={!!reportToDelete}
-                onClose={() => setReportToDelete(null)}
-                onConfirm={executeDeleteReport}
-                title="Eliminar Informe Médico"
-                message="¿Estás seguro de eliminar este registro del historial clínico? Esta acción no se puede deshacer."
-                isDestructive={true}
-            />
         </div>
     );
 };
-
-const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void; onViewReport: (r: MedicalReport) => void; onViewMedia: (att: Attachment) => void; }> = ({ player, onEdit, onPlayerUpdate, onViewReport, onViewMedia }) => {
-   return (
-      <div className="space-y-4 animate-fadeIn pb-6">
-         {/* Edit Header for Tab */}
-         <div className="flex justify-between items-center bg-scout-800 p-3 rounded-xl border border-scout-700">
-             <h3 className="font-bold text-white flex items-center gap-2">
-                 <ActivityIcon className="w-5 h-5 text-blue-400" /> Informe Físico y Rendimiento
-             </h3>
-             {onEdit && (
-                 <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
-                     <Edit className="w-3.5 h-3.5" /> Editar Métricas
-                 </button>
-             )}
-         </div>
-
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            
-            {/* REMOVED: Performance Metrics Sliders (Moved to General Tab as requested) */}
-
-            {/* Metrics & Medical History */}
-            <div className="lg:col-span-2 space-y-4">
-                
-                {/* Status Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex flex-col justify-between relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-3 opacity-10">
-                            <ActivityIcon className="w-16 h-16" />
-                        </div>
-                        <div className="flex justify-between items-start mb-2 relative z-10">
-                            <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Riesgo de Lesión</span>
-                            <div className={`w-3 h-3 rounded-full ${player.physical?.injuryRisk === 'Alto' ? 'bg-red-500 animate-pulse' : player.physical?.injuryRisk === 'Medio' ? 'bg-yellow-500' : 'bg-emerald-500'}`}></div>
-                        </div>
-                        <div className={`text-3xl font-black relative z-10 ${player.physical?.injuryRisk === 'Alto' ? 'text-red-400' : player.physical?.injuryRisk === 'Medio' ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                            {player.physical?.injuryRisk || 'N/A'}
-                        </div>
-                        <p className="text-[10px] text-scout-500 mt-1 relative z-10">Basado en historial reciente</p>
-                    </div>
-
-                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Fatiga Acumulada</span>
-                            <Zap className="w-5 h-5 text-orange-500" />
-                        </div>
-                        <div className="flex items-end gap-2">
-                            <div className="text-3xl font-black text-white">{player.physical?.fatigueLevel || 0}%</div>
-                        </div>
-                        <div className="w-full bg-scout-900 h-1.5 rounded-full mt-2 overflow-hidden">
-                            <div 
-                                className={`h-1.5 rounded-full ${player.physical?.fatigueLevel && player.physical.fatigueLevel > 80 ? 'bg-red-500' : 'bg-orange-500'}`} 
-                                style={{ width: `${player.physical?.fatigueLevel || 0}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Medical History Cascade System */}
-                <div className="bg-scout-800/50 p-4 rounded-xl border border-scout-700">
-                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} onViewReport={onViewReport} onViewMedia={onViewMedia} />
-                </div>
-
-                {/* General Fitness Notes */}
-                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
-                    <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider flex items-center gap-2">
-                        <FileText className="w-4 h-4"/> Notas del Preparador Físico
-                    </h3>
-                    <div className="bg-scout-900/50 p-3 rounded-lg text-sm text-scout-200 italic border border-scout-700/50 leading-relaxed">
-                        "{player.physical?.fitnessNotes || 'Sin notas registradas actualmente.'}"
-                    </div>
-                </div>
-            </div>
-         </div>
-      </div>
-   );
-};
-
-const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
-   return (
-      <div className="space-y-4 animate-fadeIn pb-6">
-         {/* Edit Header for Tab */}
-         <div className="flex justify-between items-center bg-scout-800 p-3 rounded-xl border border-scout-700">
-             <h3 className="font-bold text-white flex items-center gap-2">
-                 <Briefcase className="w-5 h-5 text-purple-400" /> Información Contractual
-             </h3>
-             {onEdit && (
-                 <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
-                     <Edit className="w-3.5 h-3.5" /> Editar Datos
-                 </button>
-             )}
-         </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Value Card */}
-            <div className="bg-gradient-to-br from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-lg relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <DollarSign className="w-24 h-24 text-scout-gold" />
-               </div>
-               <div className="relative z-10">
-                  <h3 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-2">Valor de Mercado</h3>
-                  <div className="text-4xl font-black text-white mb-1">{player.marketValue || 'N/A'}</div>
-                  <p className="text-xs text-emerald-400 font-medium">Actualizado: Hoy</p>
-               </div>
-            </div>
-
-            {/* Contract Summary */}
-            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 shadow-lg flex flex-col justify-center">
-               <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-scout-700 rounded-full flex items-center justify-center">
-                     <Briefcase className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <div>
-                     <div className="text-xs text-scout-500 uppercase font-bold">Club Propietario</div>
-                     <div className="text-lg font-bold text-white">{player.contract?.clubName || player.team}</div>
-                  </div>
-               </div>
-               {player.contract?.isLoan && (
-                  <div className="bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-lg text-xs font-bold self-start border border-purple-500/30">
-                     JUGADOR CEDIDO
-                  </div>
-               )}
-            </div>
-         </div>
-
-         {/* Detailed Grid */}
-         <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden">
-            <div className="p-3 border-b border-scout-700 bg-scout-900/30">
-               <h3 className="font-bold text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-scout-gold" /> Detalles Contractuales
-               </h3>
-            </div>
-            <div className="divide-y divide-scout-700">
-               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
-                  <div className="text-sm text-scout-400">Vencimiento Contrato</div>
-                  <div className="text-sm font-medium text-white text-right">{player.contract?.contractExpiration || '-'}</div>
-               </div>
-               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
-                  <div className="text-sm text-scout-400">Agencia Representación</div>
-                  <div className="text-sm font-medium text-white text-right">{player.contract?.agencyName || '-'}</div>
-               </div>
-               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
-                  <div className="text-sm text-scout-400">Contacto Agente</div>
-                  <div className="text-sm font-medium text-white text-right">{player.contract?.agencyContact || '-'}</div>
-               </div>
-               {player.contract?.isLoan && (
-                   <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors bg-purple-500/5">
-                     <div className="text-sm text-purple-300">Club de Origen</div>
-                     <div className="text-sm font-medium text-white text-right">{player.contract?.loanOriginClub || '-'}</div>
-                   </div>
-               )}
-            </div>
-         </div>
-      </div>
-   );
-};
-
-// --- Main Component ---
 
 export const PlayerProfile: React.FC<PlayerProfileProps> = ({ 
   player, 
@@ -722,626 +545,390 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   allUsers,
   onEditNote,
   onDeleteNote,
-  onBack 
+  onBack
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'physical' | 'nutrition' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'medical' | 'nutrition' | 'report'>('overview');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [aiReport, setAiReport] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  
+  // New Note Modal
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | undefined>(undefined);
-  
-  // Note filtering
+
+  // Search/Filter for Notes
   const [noteSearch, setNoteSearch] = useState('');
   const [noteCategory, setNoteCategory] = useState<NoteCategory | 'All'>('All');
-  
-  // AI Report State
-  const [aiReport, setAiReport] = useState<string | null>(null);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [showAiModal, setShowAiModal] = useState(false);
 
-  // Detail View State (Notes & Medical Reports)
-  const [viewingItem, setViewingItem] = useState<{ type: 'note' | 'medical', data: any } | null>(null);
-  
-  // Full Screen Media Viewer State (Lightbox)
-  const [fullScreenMedia, setFullScreenMedia] = useState<Attachment | null>(null);
-
-  // Tabs configuration - REORDERED: General -> Contract -> Physical -> Nutrition -> Notes
-  const tabs = [
-    { id: 'overview', label: 'General', icon: ActivityIcon },
-    { id: 'contract', label: 'Contrato', icon: Briefcase },
-    { id: 'physical', label: 'Físico', icon: HeartPulse },
-    { id: 'nutrition', label: 'Nutrición', icon: Apple },
-    { id: 'notes', label: 'Notas', icon: ClipboardList },
-  ];
+  // Viewer Modal for Media
+  const [viewingMedia, setViewingMedia] = useState<Attachment | null>(null);
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
-    setShowAiModal(true);
-    const report = await generateScoutingReport(player, notes);
-    setAiReport(report);
-    setIsGeneratingReport(false);
+    setReportError(null);
+    try {
+      const report = await generateScoutingReport(player, notes);
+      setAiReport(report);
+    } catch (e) {
+      setReportError("Error al conectar con Gemini AI. Verifica tu conexión o clave API.");
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
-  const handleEditNoteRequest = (note: Note) => {
-      setEditingNote(note);
-      setIsNoteEditorOpen(true);
+  const handleSaveNote = (content: string, category: NoteCategory, tags: string[], attachments: Attachment[]) => {
+      if (editingNote) {
+          // Update existing
+          onEditNote({
+              ...editingNote,
+              content, category, tags, attachments,
+              isEdited: true
+          });
+          setEditingNote(undefined);
+      } else {
+          // Create new
+          onAddNote(content, category, tags, attachments);
+      }
+      setIsNoteEditorOpen(false);
   };
 
-  const handleViewNote = (note: Note) => {
-      setViewingItem({ type: 'note', data: note });
+  const handleDelete = () => {
+      onDeletePlayer(player.id);
+      setDeleteConfirmOpen(false);
   };
-
-  const handleViewMedicalReport = (report: MedicalReport) => {
-      setViewingItem({ type: 'medical', data: report });
-  };
-
-  const handleViewMedia = (attachment: Attachment) => {
-      setFullScreenMedia(attachment);
-  };
-
-  // Radar Data
-  const radarData = [
-      { subject: 'Ritmo', A: player.stats.pace, fullMark: 100 },
-      { subject: 'Tiro', A: player.stats.shooting, fullMark: 100 },
-      { subject: 'Pase', A: player.stats.passing, fullMark: 100 },
-      { subject: 'Regate', A: player.stats.dribbling, fullMark: 100 },
-      { subject: 'Defensa', A: player.stats.defending, fullMark: 100 },
-      { subject: 'Físico', A: player.stats.physical, fullMark: 100 },
-  ];
 
   return (
-    <div className="h-full flex flex-col bg-[#0b1120] relative overflow-hidden">
+    <div className="h-full flex flex-col bg-[#0b1120] relative">
       
-      {/* Enhanced Top Bar with better visibility and details - Denser Padding */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border-b border-scout-700 bg-gradient-to-r from-scout-900 via-scout-800 to-scout-900 relative overflow-hidden shrink-0">
-         
-         {/* Background pattern */}
-         <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-
-         <div className="flex items-center gap-5 z-10 w-full md:w-auto">
-             {/* Back Button only visible if onBack prop is provided (Mobile) */}
-             {onBack && (
-                 <button onClick={onBack} className="p-2 -ml-2 text-scout-400 hover:text-white rounded-full hover:bg-scout-800 md:hidden">
-                     <ArrowLeft className="w-6 h-6" />
-                 </button>
-             )}
-             
-             {/* Large Player Avatar with Rating Badge - Slightly smaller for density */}
-             <div className="relative shrink-0">
-                 <img 
-                    src={player.imageUrl} 
-                    alt={player.name} 
-                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-4 border-scout-700 shadow-2xl bg-scout-800"
-                 />
-                 <div className="absolute -bottom-2 -right-2 bg-scout-900 rounded-full p-1">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-scout-gold to-yellow-600 flex items-center justify-center text-scout-900 font-black text-sm border-2 border-scout-900 shadow-lg">
-                        {player.scoutRating}
-                    </div>
-                 </div>
-             </div>
-             
-             {/* Detailed Player Info Block */}
-             <div className="flex-1 min-w-0">
-                 <h2 className="text-2xl md:text-3xl font-black text-white truncate tracking-tight mb-2 leading-none">{player.name}</h2>
-                 
-                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-scout-300 font-medium">
-                    <div className="flex items-center gap-1.5 bg-scout-900/60 px-2 py-1 rounded border border-scout-700/50">
-                        <Shirt className="w-3.5 h-3.5 text-scout-400"/>
-                        <span className="text-white truncate max-w-[120px]">{player.team}</span>
-                    </div>
-                    
-                    <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
-                    
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-scout-100">{player.position}</span>
-                    </div>
-
-                    <span className="w-1 h-1 rounded-full bg-scout-600"></span>
-
-                    <div>{player.age} Años</div>
-
-                    <span className="w-1 h-1 rounded-full bg-scout-600"></span>
-
-                    <div className="flex items-center gap-1.5" title="Nacionalidad">
-                        <MapPin className="w-3.5 h-3.5 text-scout-400"/>
-                        <span>{player.country}</span>
-                    </div>
-
-                    <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
-
-                    <div className="flex items-center gap-1.5" title="Pie Hábil">
-                        <Footprints className="w-3.5 h-3.5 text-scout-400"/>
-                        <span>{player.foot}</span>
-                    </div>
-                 </div>
-             </div>
+      {/* Header */}
+      <div className="p-4 border-b border-scout-700 bg-scout-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
+         <div className="flex items-center gap-4">
+            {onBack && (
+               <button onClick={onBack} className="md:hidden p-2 -ml-2 text-scout-400">
+                  <ArrowLeft className="w-5 h-5" />
+               </button>
+            )}
+            <div className="relative group">
+                <img src={player.imageUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-scout-gold shadow-lg" />
+                <button onClick={() => onEditPlayer(player)} className="absolute bottom-0 right-0 bg-scout-800 p-1 rounded-full border border-scout-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Edit className="w-3 h-3" />
+                </button>
+            </div>
+            <div>
+               <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-wide flex items-center gap-2">
+                  {player.name}
+                  <span className="text-xs bg-scout-gold text-scout-900 px-2 py-0.5 rounded font-bold">{player.position}</span>
+               </h1>
+               <div className="flex items-center gap-3 text-sm text-scout-400">
+                  <span className="flex items-center gap-1"><Shirt className="w-3 h-3"/> {player.team}</span>
+                  <span className="flex items-center gap-1"><Flag className="w-3 h-3"/> {player.country}</span>
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {player.age} años</span>
+               </div>
+            </div>
          </div>
 
-         {/* Actions Toolbar */}
-         <div className="flex items-center gap-2 mt-4 md:mt-0 z-10 self-end md:self-center ml-auto md:ml-0">
-             <button onClick={handleGenerateReport} className="p-2 text-purple-400 hover:text-white hover:bg-purple-600/20 rounded-lg transition-colors border border-transparent hover:border-purple-500/30" title="Generar Informe IA">
-                 <BrainCircuit className="w-5 h-5" />
-             </button>
-             <button onClick={() => exportPlayerProfileToPDF(player, notes)} className="p-2 text-green-400 hover:text-white hover:bg-green-600/20 rounded-lg transition-colors border border-transparent hover:border-green-500/30" title="Exportar PDF">
-                 <FileDown className="w-5 h-5" />
-             </button>
-             <div className="h-8 w-px bg-scout-700 mx-1"></div>
-             <button onClick={() => onEditPlayer(player)} className="p-2 text-scout-400 hover:text-white hover:bg-scout-700 rounded-lg transition-colors" title="Editar Perfil">
-                 <Edit className="w-5 h-5" />
-             </button>
-             <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar Jugador">
-                 <Trash2 className="w-5 h-5" />
-             </button>
-         </div>
-      </div>
-
-      {/* Tabs Navigation (Scrollable) - Reduced Padding */}
-      <div className="flex border-b border-scout-800 overflow-x-auto no-scrollbar bg-scout-900/30 shrink-0">
-         {tabs.map((tab) => (
-            <button
-               key={tab.id}
-               onClick={() => setActiveTab(tab.id as any)}
-               className={`
-                  flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-all border-b-2
-                  ${activeTab === tab.id 
-                     ? 'border-emerald-500 text-white bg-scout-800' 
-                     : 'border-transparent text-scout-400 hover:text-scout-200 hover:bg-scout-800/50'}
-               `}
+         <div className="flex gap-2 self-end md:self-center">
+            <button 
+                onClick={() => exportPlayerProfileToPDF(player, notes)}
+                className="p-2 bg-scout-800 hover:bg-scout-700 text-scout-400 hover:text-white rounded-lg border border-scout-700 transition-colors"
+                title="Exportar PDF"
             >
-               <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-emerald-400' : ''}`} />
-               {tab.label}
+                <FileDown className="w-5 h-5" />
             </button>
-         ))}
+            <button 
+                onClick={() => onEditPlayer(player)}
+                className="p-2 bg-scout-800 hover:bg-scout-700 text-scout-400 hover:text-white rounded-lg border border-scout-700 transition-colors"
+                title="Editar Perfil"
+            >
+                <Edit className="w-5 h-5" />
+            </button>
+            <button 
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="p-2 bg-scout-800 hover:bg-red-500/20 text-scout-400 hover:text-red-400 rounded-lg border border-scout-700 transition-colors"
+                title="Eliminar Jugador"
+            >
+                <Trash2 className="w-5 h-5" />
+            </button>
+         </div>
       </div>
 
-      {/* Main Scrollable Content - Denser Padding */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-4 pb-20 md:pb-4">
-        
-        {activeTab === 'overview' && (
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fadeIn">
-              
-              {/* Left Col: Pitch & Basic Stats */}
-              <div className="space-y-4">
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg h-72 relative group">
-                    <div className="absolute inset-0 bg-gradient-to-t from-scout-900/80 to-transparent z-10 pointer-events-none"></div>
-                    <div className="absolute bottom-3 left-3 z-20">
-                        <span className="text-[10px] text-scout-400 uppercase font-bold tracking-wider">Mapa de Calor / Posición</span>
-                        <div className="flex items-center gap-2">
-                             <span className="text-white font-bold">{player.position}</span>
-                             <span className="text-xs text-scout-400">({player.foot})</span>
-                        </div>
-                    </div>
-                    {/* Pitch Visualizer */}
-                    <TacticalPitch position={player.position} />
-                 </div>
+      {/* Tabs */}
+      <div className="flex border-b border-scout-700 bg-scout-900/30 overflow-x-auto shrink-0">
+          {[
+              { id: 'overview', label: 'Resumen', icon: ActivityIcon },
+              { id: 'notes', label: `Notas (${notes.length})`, icon: ClipboardList },
+              { id: 'medical', label: 'Médico', icon: HeartPulse },
+              { id: 'nutrition', label: 'Nutrición', icon: Apple },
+              { id: 'report', label: 'Informe IA', icon: BrainCircuit },
+          ].map(tab => (
+              <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`
+                      flex items-center gap-2 px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap
+                      ${activeTab === tab.id ? 'border-scout-gold text-scout-gold bg-scout-800/50' : 'border-transparent text-scout-400 hover:text-scout-200 hover:bg-scout-800/30'}
+                  `}
+              >
+                  <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-scout-gold' : 'text-scout-500'}`} />
+                  {tab.label}
+              </button>
+          ))}
+      </div>
 
-                 {/* NEW: Radar Chart - Reduced Height */}
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-3 shadow-lg flex flex-col justify-center items-center relative">
-                    <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider mb-2 self-start">Radar de Atributos</h3>
-                    <div className="h-56 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                <PolarGrid stroke="#334155" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                <Radar name={player.name} dataKey="A" stroke="#10b981" strokeWidth={2} fill="#10b981" fillOpacity={0.3} />
-                                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }} />
-                            </RadarChart>
-                        </ResponsiveContainer>
-                    </div>
-                 </div>
-
-                 {/* Basic Stats Grid - Denser */}
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-3 relative group">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider">Atributos Principales</h3>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'general'); }}
-                            className="text-scout-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Edit className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                    <div className="space-y-3">
-                       {Object.entries(player.stats).map(([key, val]) => {
-                          const value = val as number;
-                          return (
-                          <div key={key}>
-                             <div className="flex justify-between items-end mb-1">
-                                <span className="text-xs text-scout-300 capitalize">{STAT_LABELS[key] || key}</span>
-                                <span className={`text-xs font-bold ${value >= 80 ? 'text-emerald-400' : value >= 70 ? 'text-yellow-400' : 'text-scout-400'}`}>{value}</span>
-                             </div>
-                             <div className="w-full bg-scout-900 h-1.5 rounded-full">
-                                <div 
-                                   className={`h-1.5 rounded-full ${value >= 80 ? 'bg-emerald-500' : value >= 70 ? 'bg-yellow-500' : 'bg-scout-500'}`} 
-                                   style={{ width: `${value}%` }}
-                                ></div>
-                             </div>
-                          </div>
-                       )})}
-                    </div>
-                 </div>
-              </div>
-
-              {/* Middle/Right Col: Detailed Views */}
-              <div className="lg:col-span-2 space-y-4">
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#0b1120] relative">
+          
+          {/* TAB: OVERVIEW */}
+          {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
                   
-                  {/* Physical & Contract Teasers (MOVED TO TOP) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-3 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group relative">
-                        <div className="flex justify-between items-start mb-2">
-                           <ActivityIcon className="w-5 h-5 text-blue-400" />
-                           <div className="flex gap-2">
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'physical'); }} 
-                                 className="text-scout-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                               >
-                                   <Edit className="w-3.5 h-3.5" />
-                               </button>
-                               <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all mt-1" />
+                  {/* Left Column: Stats & Attributes */}
+                  <div className="lg:col-span-2 space-y-6">
+                      {/* Using the new PlayerStatsDashboard component */}
+                      <PlayerStatsDashboard player={player} />
+                      
+                      {/* Contract / General Info Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                           <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+                               <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Valor de Mercado</div>
+                               <div className="text-xl font-bold text-white flex items-center gap-1">
+                                   <DollarSign className="w-4 h-4 text-green-400" />
+                                   {player.marketValue || 'N/A'}
+                               </div>
                            </div>
-                        </div>
-                        <div className="text-2xl font-bold text-white mb-1">{player.physical?.recoveryStatus || 'N/A'}</div>
-                        <p className="text-xs text-scout-500">Estado Físico Actual</p>
-                     </div>
-                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-3 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group relative">
-                        <div className="flex justify-between items-start mb-2">
-                           <Briefcase className="w-5 h-5 text-purple-400" />
-                           <div className="flex gap-2">
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'contract'); }} 
-                                 className="text-scout-500 hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                               >
-                                   <Edit className="w-3.5 h-3.5" />
-                               </button>
-                               <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-all mt-1" />
+                           <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+                               <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Contrato Hasta</div>
+                               <div className="text-xl font-bold text-white flex items-center gap-1">
+                                   <Briefcase className="w-4 h-4 text-purple-400" />
+                                   {player.contract?.contractExpiration || 'N/A'}
+                               </div>
                            </div>
-                        </div>
-                        <div className="text-2xl font-bold text-white mb-1">{player.contract?.contractExpiration ? new Date(player.contract.contractExpiration).getFullYear() : 'N/A'}</div>
-                        <p className="text-xs text-scout-500">Fin de Contrato</p>
-                     </div>
+                           <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+                               <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Pie Hábil</div>
+                               <div className="text-xl font-bold text-white flex items-center gap-1">
+                                   <Footprints className="w-4 h-4 text-blue-400" />
+                                   {player.foot}
+                               </div>
+                           </div>
+                      </div>
                   </div>
 
-                  {/* Latest Note Teaser (MOVED DOWN) - Updated to open Modal instead of navigating */}
-                  <div 
-                    onClick={() => notes.length > 0 && handleViewNote(notes[0])}
-                    className="bg-gradient-to-r from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-md cursor-pointer hover:border-scout-gold/50 transition-all group"
-                  >
-                      <div className="flex justify-between items-start mb-3">
-                         <h3 className="font-bold text-white flex items-center gap-2">
-                            <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
-                         </h3>
-                         <button onClick={(e) => { e.stopPropagation(); setActiveTab('notes'); }} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
-                            Ver todas <ArrowRight className="w-3 h-3" />
-                         </button>
+                  {/* Right Column: Tactical & Physical Summary */}
+                  <div className="space-y-6">
+                      {/* Tactical Pitch Visualizer */}
+                      <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg relative aspect-[3/4] lg:aspect-auto lg:h-[400px]">
+                          <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-black/60 to-transparent z-10 pointer-events-none">
+                              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 shadow-black drop-shadow-md">
+                                  <MapPin className="w-3 h-3 text-scout-gold" /> Mapa Táctico
+                              </h3>
+                          </div>
+                          <TacticalPitch position={player.position} />
                       </div>
-                      {notes.length > 0 ? (
-                         <div className="bg-black/20 p-3 rounded-lg border border-white/5 group-hover:bg-black/30 transition-colors">
-                            <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
-                            
-                            {/* NEW: Media Preview Strip */}
-                            {notes[0].attachments && notes[0].attachments.length > 0 && (
-                                <div className="flex gap-2 mt-3 overflow-hidden">
-                                    {notes[0].attachments.slice(0, 4).map((att) => (
-                                        <div 
-                                            key={att.id} 
-                                            onClick={(e) => { e.stopPropagation(); handleViewMedia(att); }}
-                                            className="relative w-12 h-12 shrink-0 rounded overflow-hidden border border-white/10 bg-black/40 cursor-pointer hover:border-scout-gold transition-colors group/mini"
-                                        >
-                                            {att.type === 'image' ? (
-                                                <img src={att.url} alt="att" className="w-full h-full object-cover opacity-80 group-hover/mini:opacity-100" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-white/50 group-hover/mini:text-white">
-                                                    {att.type === 'youtube' ? <Youtube className="w-5 h-5" /> : <Film className="w-5 h-5" />}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {notes[0].attachments.length > 4 && (
-                                        <div className="w-12 h-12 shrink-0 rounded border border-white/10 bg-white/5 flex items-center justify-center text-[10px] text-scout-400 font-bold">
-                                            +{notes[0].attachments.length - 4}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
 
-                            <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
-                               <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
-                               <span>•</span>
-                               <span className="uppercase font-bold text-scout-400">{notes[0].category}</span>
-                            </div>
-                         </div>
+                      {/* Physical Summary Brief */}
+                      <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+                          <h3 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-3 border-b border-scout-700 pb-2">Estado Físico</h3>
+                          <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm text-scout-300">Riesgo Lesión</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${player.physical?.injuryRisk === 'Alto' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                  {player.physical?.injuryRisk || 'N/A'}
+                              </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                              <span className="text-sm text-scout-300">Fatiga Acumulada</span>
+                              <span className="text-sm font-bold text-white">{player.physical?.fatigueLevel || 0}%</span>
+                          </div>
+                          <div className="w-full bg-scout-900 h-1.5 rounded-full mt-2">
+                              <div className={`h-1.5 rounded-full ${player.physical?.fatigueLevel && player.physical.fatigueLevel > 70 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${player.physical?.fatigueLevel || 0}%` }}></div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* TAB: NOTES */}
+          {activeTab === 'notes' && (
+              <div className="flex flex-col h-full animate-slideIn">
+                   <div className="mb-4 flex justify-between items-center">
+                       <h3 className="text-lg font-bold text-white hidden md:block">Observaciones de Scouting</h3>
+                       <button 
+                         onClick={() => { setEditingNote(undefined); setIsNoteEditorOpen(true); }}
+                         className="bg-scout-accent hover:bg-emerald-400 text-scout-900 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all ml-auto"
+                       >
+                           <Plus className="w-4 h-4" /> Nueva Nota
+                       </button>
+                   </div>
+                   
+                   <div className="flex-1 min-h-0">
+                       <NoteList 
+                          notes={notes}
+                          searchQuery={noteSearch}
+                          setSearchQuery={setNoteSearch}
+                          selectedCategory={noteCategory}
+                          setSelectedCategory={setNoteCategory}
+                          currentUser={currentUser}
+                          allUsers={allUsers}
+                          onEditNote={(n) => { setEditingNote(n); setIsNoteEditorOpen(true); }}
+                          onDeleteNote={onDeleteNote}
+                          onViewNote={(n) => {
+                             if (n.attachments.length > 0) setViewingMedia(n.attachments[0]);
+                          }}
+                       />
+                   </div>
+              </div>
+          )}
+
+          {/* TAB: MEDICAL */}
+          {activeTab === 'medical' && (
+              <div className="animate-fadeIn max-w-4xl mx-auto">
+                   <MedicalHistorySection 
+                      player={player} 
+                      onUpdate={onPlayerUpdate} 
+                      onViewReport={(r) => { /* Optional: Open detailed view modal */ }}
+                      onViewMedia={(att) => setViewingMedia(att)}
+                   />
+              </div>
+          )}
+
+          {/* TAB: NUTRITION */}
+          {activeTab === 'nutrition' && (
+              <div className="animate-fadeIn max-w-4xl mx-auto">
+                  <NutritionContent 
+                      player={player} 
+                      onEdit={() => onEditPlayer(player, 'nutrition', true)} 
+                  />
+              </div>
+          )}
+
+          {/* TAB: AI REPORT */}
+          {activeTab === 'report' && (
+              <div className="animate-fadeIn max-w-3xl mx-auto space-y-6">
+                  <div className="bg-scout-800 border border-scout-700 rounded-xl p-6 shadow-xl">
+                      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b border-scout-700 pb-6">
+                          <div>
+                              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                  <BrainCircuit className="w-6 h-6 text-purple-400" />
+                                  Informe Inteligente Gemini
+                              </h3>
+                              <p className="text-sm text-scout-400 mt-1">Genera un análisis completo basado en tus notas y estadísticas.</p>
+                          </div>
+                          <button 
+                              onClick={handleGenerateReport}
+                              disabled={isGeneratingReport}
+                              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-purple-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all transform hover:scale-105"
+                          >
+                              {isGeneratingReport ? (
+                                  <>
+                                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                      Analizando...
+                                  </>
+                              ) : (
+                                  <>
+                                      <Zap className="w-4 h-4" /> Generar Informe
+                                  </>
+                              )}
+                          </button>
+                      </div>
+                      
+                      {reportError && (
+                          <div className="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-lg mb-6 flex items-center gap-3">
+                              <AlertCircle className="w-5 h-5" />
+                              {reportError}
+                          </div>
+                      )}
+
+                      {aiReport ? (
+                          <div className="animate-fadeIn">
+                              <div className="prose prose-invert prose-sm max-w-none bg-scout-900/50 p-6 rounded-xl border border-scout-700 mb-6">
+                                  {/* Simple Markdown Rendering */}
+                                  {aiReport.split('\n').map((line, i) => {
+                                      if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold text-purple-400 mb-4">{line.replace('# ', '')}</h1>;
+                                      if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold text-blue-400 mt-6 mb-3">{line.replace('## ', '')}</h2>;
+                                      if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold text-white mt-4 mb-2">{line.replace('### ', '')}</h3>;
+                                      if (line.startsWith('- ')) return <li key={i} className="ml-4 text-scout-300 mb-1 list-disc">{line.replace('- ', '')}</li>;
+                                      if (line.startsWith('**')) return <p key={i} className="font-bold text-white mb-2">{line.replace(/\*\*/g, '')}</p>;
+                                      return <p key={i} className="text-scout-300 mb-2 leading-relaxed">{line}</p>;
+                                  })}
+                              </div>
+                              <div className="flex justify-end">
+                                  <button 
+                                      onClick={() => exportAIReportToPDF(player, aiReport)}
+                                      className="flex items-center gap-2 px-4 py-2 bg-scout-700 hover:bg-scout-600 text-white rounded-lg font-medium transition-colors"
+                                  >
+                                      <Download className="w-4 h-4" /> Descargar PDF
+                                  </button>
+                              </div>
+                          </div>
                       ) : (
-                         <p className="text-sm text-scout-500 italic">No hay notas registradas aún.</p>
+                          !isGeneratingReport && (
+                              <div className="text-center py-12 text-scout-500">
+                                  <BrainCircuit className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                                  <p>El informe aparecerá aquí una vez generado.</p>
+                              </div>
+                          )
                       )}
                   </div>
-
-                  {/* AI Quick Analysis (If available) */}
-                  {aiReport && (
-                     <div className="bg-purple-900/10 border border-purple-500/20 p-4 rounded-xl">
-                        <h3 className="text-sm font-bold text-purple-300 mb-2 flex items-center gap-2">
-                           <BrainCircuit className="w-4 h-4" /> Análisis IA Reciente
-                        </h3>
-                        <div className="text-sm text-scout-200 line-clamp-4 leading-relaxed">
-                           {aiReport.substring(0, 300)}...
-                        </div>
-                     </div>
-                  )}
               </div>
-           </div>
-        )}
+          )}
 
-        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} onViewReport={handleViewMedicalReport} onViewMedia={handleViewMedia} />}
-        
-        {activeTab === 'nutrition' && <NutritionContent player={player} onEdit={() => onEditPlayer(player, 'nutrition', true)} />}
-        
-        {activeTab === 'contract' && <ContractContent player={player} onEdit={() => onEditPlayer(player, 'contract', true)} />}
-
-        {activeTab === 'notes' && (
-           <div className="h-full flex flex-col animate-fadeIn">
-              <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-white">Historial de Scouting</h3>
-                 <button 
-                    onClick={() => { setEditingNote(undefined); setIsNoteEditorOpen(true); }}
-                    className="bg-scout-accent hover:bg-emerald-400 text-scout-900 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                 >
-                    <Edit className="w-4 h-4" /> Nueva Nota
-                 </button>
-              </div>
-
-              {/* Notes List Component */}
-              <div className="flex-1 min-h-0 relative">
-                  {isNoteEditorOpen ? (
-                      <div className="absolute inset-0 z-10 bg-[#0b1120]">
-                          <NoteEditor 
-                             onSave={(content, category, tags, attachments) => {
-                                 if (editingNote) {
-                                     onEditNote({ ...editingNote, content, category, tags, attachments, timestamp: Date.now(), isEdited: true });
-                                 } else {
-                                     onAddNote(content, category, tags, attachments);
-                                 }
-                                 setIsNoteEditorOpen(false);
-                                 setEditingNote(undefined);
-                             }}
-                             onCancel={() => { setIsNoteEditorOpen(false); setEditingNote(undefined); }}
-                             initialData={editingNote}
-                          />
-                      </div>
-                  ) : (
-                      <NoteList 
-                         notes={notes}
-                         searchQuery={noteSearch}
-                         setSearchQuery={setNoteSearch}
-                         selectedCategory={noteCategory}
-                         setSelectedCategory={setNoteCategory}
-                         currentUser={currentUser}
-                         allUsers={allUsers}
-                         onEditNote={handleEditNoteRequest}
-                         onDeleteNote={onDeleteNote}
-                         onViewNote={handleViewNote}
-                      />
-                  )}
-              </div>
-           </div>
-        )}
       </div>
 
-      {/* AI Report Modal Overlay */}
-      {showAiModal && (
-         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-scout-800 w-full max-w-2xl max-h-[80vh] rounded-2xl border border-scout-700 shadow-2xl flex flex-col animate-scaleIn">
-               <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900/50">
-                  <h3 className="font-bold text-white flex items-center gap-2">
-                     <BrainCircuit className="w-5 h-5 text-purple-400" />
-                     Informe de Scouting IA
-                  </h3>
-                  <button onClick={() => setShowAiModal(false)} className="text-scout-400 hover:text-white">
-                     <X className="w-5 h-5" />
+      {/* Media Viewer Modal */}
+      {viewingMedia && (
+          <div className="fixed inset-0 bg-black/95 z-[70] flex flex-col animate-fadeIn">
+              <div className="absolute top-4 right-4 z-10">
+                  <button onClick={() => setViewingMedia(null)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+                      <X className="w-6 h-6" />
                   </button>
-               </div>
-               
-               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0b1120]/30">
-                  {isGeneratingReport ? (
-                     <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                        <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-                        <p className="text-purple-300 animate-pulse font-medium">Analizando datos del jugador...</p>
-                     </div>
+              </div>
+              <div className="flex-1 flex items-center justify-center p-4">
+                  {viewingMedia.type === 'video' ? (
+                      <video src={viewingMedia.url} controls className="max-w-full max-h-full rounded shadow-2xl" autoPlay />
+                  ) : viewingMedia.type === 'youtube' ? (
+                      <div className="w-full max-w-4xl aspect-video bg-black">
+                         <iframe 
+                            src={`https://www.youtube.com/embed/${getYoutubeId(viewingMedia.url)}?autoplay=1`} 
+                            className="w-full h-full" 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                         ></iframe>
+                      </div>
                   ) : (
-                     <div className="prose prose-invert prose-sm max-w-none">
-                        <div className="whitespace-pre-wrap text-scout-200 leading-relaxed font-sans">
-                           {aiReport}
-                        </div>
-                     </div>
+                      <img src={viewingMedia.url} alt={viewingMedia.name} className="max-w-full max-h-full object-contain rounded shadow-2xl" />
                   )}
-               </div>
+              </div>
+              <div className="p-4 text-center text-white bg-black/50 backdrop-blur-sm">
+                  <p className="font-bold">{viewingMedia.name}</p>
+              </div>
+          </div>
+      )}
 
-               {!isGeneratingReport && (
-                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
-                      <button onClick={() => aiReport && exportAIReportToPDF(player, aiReport)} className="px-4 py-2 bg-scout-700 hover:bg-scout-600 text-white rounded-lg text-sm font-medium flex items-center gap-2">
-                          <FileDown className="w-4 h-4" /> Guardar PDF
-                      </button>
-                      <button onClick={() => setShowAiModal(false)} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-bold">
-                          Cerrar
-                      </button>
-                  </div>
-               )}
+      {/* Note Editor Modal (Overlay) */}
+      {isNoteEditorOpen && (
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="w-full max-w-2xl">
+               <NoteEditor 
+                 onSave={handleSaveNote}
+                 onCancel={() => setIsNoteEditorOpen(false)}
+                 initialData={editingNote}
+               />
             </div>
          </div>
       )}
 
-      {/* DETAIL MODAL (Notes & Medical) */}
-      {viewingItem && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn">
-              <div className="bg-scout-800 w-full max-w-3xl max-h-[85vh] rounded-2xl border border-scout-700 shadow-2xl flex flex-col animate-scaleIn overflow-hidden">
-                  
-                  {/* Header */}
-                  <div className="p-4 border-b border-scout-700 bg-scout-900/50 flex justify-between items-start shrink-0">
-                      <div>
-                          <div className="flex items-center gap-2 mb-1">
-                              {viewingItem.type === 'note' ? (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-scout-600 text-scout-300 bg-scout-800">
-                                      {viewingItem.data.category}
-                                  </span>
-                              ) : (
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${viewingItem.data.severity === 'Alta' || viewingItem.data.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>
-                                      {viewingItem.data.severity}
-                                  </span>
-                              )}
-                              <span className="text-xs text-scout-500 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {viewingItem.type === 'note' 
-                                      ? new Date(viewingItem.data.timestamp).toLocaleDateString() + ' ' + new Date(viewingItem.data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                                      : new Date(viewingItem.data.date).toLocaleDateString()
-                                  }
-                              </span>
-                          </div>
-                          <h3 className="text-xl font-bold text-white leading-tight">
-                              {viewingItem.type === 'note' ? 'Detalle de Observación' : viewingItem.data.title}
-                          </h3>
-                      </div>
-                      <button onClick={() => setViewingItem(null)} className="p-2 bg-scout-700/50 hover:bg-scout-700 text-white rounded-full transition-colors">
-                          <X className="w-5 h-5" />
-                      </button>
-                  </div>
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal 
+         isOpen={deleteConfirmOpen}
+         onClose={() => setDeleteConfirmOpen(false)}
+         onConfirm={handleDelete}
+         title="Eliminar Jugador"
+         message={`¿Estás seguro de que deseas eliminar a ${player.name}? Esta acción eliminará también todas sus notas, historial médico y reportes asociados.`}
+         confirmText="Eliminar Definitivamente"
+         isDestructive
+      />
 
-                  {/* Body */}
-                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0b1120]/30">
-                      <div className="prose prose-invert prose-sm max-w-none">
-                          <p className="text-scout-100 text-base leading-relaxed whitespace-pre-wrap">
-                              {viewingItem.type === 'note' ? viewingItem.data.content : viewingItem.data.description}
-                          </p>
-                      </div>
-
-                      {/* Medical Specific Details */}
-                      {viewingItem.type === 'medical' && (
-                          <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-scout-700/50">
-                              <div className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/30">
-                                  <span className="text-[10px] text-scout-500 uppercase font-bold block mb-1">Estado Actual</span>
-                                  <span className={`text-sm font-bold ${viewingItem.data.status === 'Activo' ? 'text-red-400' : 'text-green-400'}`}>
-                                      {viewingItem.data.status}
-                                  </span>
-                              </div>
-                              <div className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/30">
-                                  <span className="text-[10px] text-scout-500 uppercase font-bold block mb-1">Responsable Médico</span>
-                                  <span className="text-sm font-bold text-white">
-                                      {viewingItem.data.doctorName || 'No asignado'}
-                                  </span>
-                              </div>
-                          </div>
-                      )}
-
-                      {/* Attachments Grid */}
-                      {viewingItem.data.attachments && viewingItem.data.attachments.length > 0 && (
-                          <div className="mt-6 pt-6 border-t border-scout-700/50">
-                              <h4 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                  <Paperclip className="w-3.5 h-3.5" /> Archivos Adjuntos ({viewingItem.data.attachments.length})
-                              </h4>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                  {viewingItem.data.attachments.map((att: Attachment) => (
-                                      <div key={att.id} className="relative group aspect-square rounded-lg overflow-hidden bg-scout-900 border border-scout-700 hover:border-scout-gold transition-all cursor-pointer" onClick={() => {
-                                          handleViewMedia(att);
-                                      }}>
-                                          {att.type === 'youtube' ? (
-                                              <div className="w-full h-full flex items-center justify-center bg-black">
-                                                  <Youtube className="w-8 h-8 text-red-500" />
-                                              </div>
-                                          ) : att.type === 'video' ? (
-                                              <video src={att.url} className="w-full h-full object-cover opacity-60" />
-                                          ) : (
-                                              <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                                          )}
-                                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                              <span className="text-xs text-white font-bold bg-black/50 px-2 py-1 rounded backdrop-blur-sm">Ver</span>
-                                          </div>
-                                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1 truncate text-[9px] text-center text-white">
-                                              {att.name}
-                                          </div>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
-
-                      {/* Tags (Only for Notes) */}
-                      {viewingItem.type === 'note' && viewingItem.data.tags && viewingItem.data.tags.length > 0 && (
-                          <div className="mt-6 pt-6 border-t border-scout-700/50">
-                              <h4 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                  <Tag className="w-3.5 h-3.5" /> Etiquetas
-                              </h4>
-                              <div className="flex flex-wrap gap-2">
-                                  {viewingItem.data.tags.map((tag: string, idx: number) => (
-                                      <span key={idx} className="bg-scout-700 text-scout-200 text-xs px-2.5 py-1 rounded-full border border-scout-600">
-                                          {tag}
-                                      </span>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
-                  </div>
-
-                  {/* Footer Actions */}
-                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
-                      <button 
-                          onClick={() => setViewingItem(null)} 
-                          className="px-6 py-2 bg-scout-700 hover:bg-scout-600 text-white font-bold rounded-lg text-sm transition-colors"
-                      >
-                          Cerrar
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* FULL SCREEN MEDIA VIEWER (LIGHTBOX) */}
-      {fullScreenMedia && (
-          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col animate-fadeIn">
-              {/* Close Button */}
-              <div className="absolute top-4 right-4 z-50">
-                  <button 
-                      onClick={() => setFullScreenMedia(null)} 
-                      className="p-2 bg-black/50 hover:bg-red-600/80 text-white rounded-full transition-colors border border-white/20"
-                  >
-                      <X className="w-6 h-6" />
-                  </button>
-              </div>
-
-              {/* Content Area */}
-              <div className="flex-1 flex items-center justify-center p-4 md:p-8 overflow-hidden" onClick={() => setFullScreenMedia(null)}>
-                  <div className="relative max-w-full max-h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                      {fullScreenMedia.type === 'image' ? (
-                          <img 
-                              src={fullScreenMedia.url} 
-                              alt={fullScreenMedia.name} 
-                              className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl border border-scout-800" 
-                          />
-                      ) : fullScreenMedia.type === 'video' ? (
-                          <video 
-                              src={fullScreenMedia.url} 
-                              controls 
-                              autoPlay 
-                              className="max-h-[85vh] max-w-full rounded-lg shadow-2xl border border-scout-800"
-                          />
-                      ) : fullScreenMedia.type === 'youtube' ? (
-                          <div className="w-[80vw] h-[80vh] max-w-5xl bg-black rounded-lg overflow-hidden border border-scout-800 shadow-2xl">
-                              <iframe 
-                                  width="100%" 
-                                  height="100%" 
-                                  src={`https://www.youtube.com/embed/${getYoutubeId(fullScreenMedia.url)}?autoplay=1`} 
-                                  title="YouTube video player" 
-                                  frameBorder="0" 
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                  allowFullScreen
-                              ></iframe>
-                          </div>
-                      ) : null}
-                  </div>
-              </div>
-
-              {/* Caption */}
-              <div className="p-4 bg-gradient-to-t from-black to-transparent text-center">
-                  <p className="text-white font-bold text-lg">{fullScreenMedia.name}</p>
-                  {fullScreenMedia.type === 'youtube' && <p className="text-scout-400 text-xs">Reproducción de YouTube</p>}
-              </div>
-          </div>
-      )}
     </div>
   );
 };

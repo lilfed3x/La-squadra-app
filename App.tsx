@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Attachment, Note, NoteCategory, Player, User, AppSettings } from './types';
 import { AuthService } from './services/authService';
 import { dataService } from './services/dataService'; 
-import { exportPlayersToExcel } from './services/exportService'; 
+import { exportPlayersToExcel, readPlayersFromExcel } from './services/exportService'; 
 import { AuthPage } from './components/AuthPage';
 import { PlayerCard } from './components/PlayerCard';
 import { PlayerProfile } from './components/PlayerProfile';
@@ -14,7 +14,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { BulkActionModal } from './components/BulkActionModal';
 import { Dashboard } from './components/Dashboard';
 import { UpdatePrompt } from './components/UpdatePrompt'; 
-import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, Shield, Download, X, CheckSquare, Trash2, ArrowRightLeft } from 'lucide-react';
+import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, Shield, Download, X, CheckSquare, Trash2, ArrowRightLeft, FileSpreadsheet, Upload } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 type ViewMode = 'dashboard' | 'database';
@@ -42,13 +42,18 @@ const App: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activePlayerId, setActivePlayerId] = useState<string>('');
+  
+  // Selection & Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkGroupOpen, setIsBulkGroupOpen] = useState(false);
+  
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [playerFilter, setPlayerFilter] = useState('');
-  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+  
+  // Accordion State
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
   
   // Modal State
@@ -58,6 +63,7 @@ const App: React.FC = () => {
   const [modalRestrictMode, setModalRestrictMode] = useState(false);
   
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -96,6 +102,16 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Initialize all teams as expanded on first load of data
+  useEffect(() => {
+      if (players.length > 0 && Object.keys(expandedTeams).length === 0) {
+          const initialExpanded: Record<string, boolean> = {};
+          const teams = Array.from(new Set(players.map(p => p.team || 'Sin Equipo')));
+          teams.forEach(t => initialExpanded[t] = true);
+          setExpandedTeams(initialExpanded);
+      }
+  }, [players.length]);
+
   const handleLoginSuccess = (user: User) => {
     setUser(user);
     setPlayers(dataService.getPlayers());
@@ -130,6 +146,41 @@ const App: React.FC = () => {
     setModalInitialTab('general');
     setModalRestrictMode(false);
     setIsModalOpen(true);
+  };
+
+  const toggleTeam = (team: string) => {
+      setExpandedTeams(prev => ({ ...prev, [team]: !prev[team] }));
+  };
+
+  const toggleSelection = (id: string) => {
+      const newSet = new Set(selectedPlayers);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedPlayers(newSet);
+  };
+
+  const handleSelectAll = () => {
+      if (selectedPlayers.size === filteredPlayers.length) {
+          setSelectedPlayers(new Set());
+      } else {
+          setSelectedPlayers(new Set(filteredPlayers.map(p => p.id)));
+      }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          try {
+              const importedPlayers = await readPlayersFromExcel(e.target.files[0]);
+              if (confirm(`Se encontraron ${importedPlayers.length} jugadores. ¿Deseas importarlos a la base de datos?`)) {
+                  await dataService.bulkImportPlayers(importedPlayers);
+                  alert('Importación completada.');
+              }
+          } catch (err) {
+              alert('Error al leer el archivo Excel.');
+              console.error(err);
+          }
+      }
+      if (importFileRef.current) importFileRef.current.value = '';
   };
 
   const filteredPlayers = useMemo(() => {
@@ -201,47 +252,139 @@ const App: React.FC = () => {
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full pb-16 md:pb-0">
-        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30">
-          <h2 className="text-lg font-bold text-white">
-            {viewMode === 'dashboard' ? 'Análisis Global' : 'Jugadores'}
-          </h2>
-          <div className="relative w-64 md:w-80">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
-              <input 
-                  type="text" 
-                  value={playerFilter} 
-                  onChange={(e) => setPlayerFilter(e.target.value)} 
-                  placeholder="Buscar..." 
-                  className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all" 
-              />
+        <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30 gap-4">
+          <div className="flex items-center gap-4 flex-1">
+             <h2 className="text-lg font-bold text-white hidden md:block">
+               {viewMode === 'dashboard' ? 'Análisis Global' : 'Jugadores'}
+             </h2>
+             <div className="relative w-full md:w-80">
+                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
+                 <input 
+                     type="text" 
+                     value={playerFilter} 
+                     onChange={(e) => setPlayerFilter(e.target.value)} 
+                     placeholder="Buscar jugador o equipo..." 
+                     className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all" 
+                 />
+             </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+              {viewMode === 'database' && (
+                  <>
+                     <button 
+                        onClick={() => {
+                            if (isSelectionMode) {
+                                setIsSelectionMode(false);
+                                setSelectedPlayers(new Set());
+                            } else {
+                                setIsSelectionMode(true);
+                            }
+                        }}
+                        className={`p-2 rounded-lg border transition-colors ${isSelectionMode ? 'bg-scout-gold text-scout-900 border-scout-gold' : 'bg-scout-800 text-scout-400 border-scout-700 hover:text-white'}`}
+                        title="Selección Múltiple"
+                     >
+                        <CheckSquare className="w-5 h-5" />
+                     </button>
+                     <input type="file" ref={importFileRef} onChange={handleImportExcel} className="hidden" accept=".xlsx,.xls" />
+                     <button 
+                        onClick={() => importFileRef.current?.click()}
+                        className="p-2 bg-scout-800 text-scout-400 hover:text-white border border-scout-700 rounded-lg transition-colors"
+                        title="Importar Excel"
+                     >
+                        <Upload className="w-5 h-5" />
+                     </button>
+                     <button 
+                        onClick={() => exportPlayersToExcel(players)}
+                        className="p-2 bg-scout-800 text-scout-400 hover:text-white border border-scout-700 rounded-lg transition-colors"
+                        title="Exportar Excel"
+                     >
+                        <FileSpreadsheet className="w-5 h-5" />
+                     </button>
+                  </>
+              )}
           </div>
         </header>
+
+        {/* BULK ACTIONS TOOLBAR */}
+        {isSelectionMode && selectedPlayers.size > 0 && (
+            <div className="bg-scout-800 border-b border-scout-700 p-2 flex items-center justify-between px-6 animate-slideIn">
+                <span className="text-sm font-bold text-white">{selectedPlayers.size} Seleccionados</span>
+                <div className="flex gap-2">
+                    <button onClick={() => setIsBulkGroupOpen(true)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold flex items-center gap-1">
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> Cambiar Grupo
+                    </button>
+                    <button onClick={() => setIsBulkDeleteOpen(true)} className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold flex items-center gap-1">
+                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                    </button>
+                </div>
+            </div>
+        )}
 
         <main className="flex-1 overflow-hidden relative">
           {viewMode === 'dashboard' && <Dashboard players={players} />}
           {viewMode === 'database' && (
              <div className="flex h-full relative">
-                <div className={`${isMobile && activePlayerId ? 'hidden' : 'flex'} w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col`}>
-                   <div className="p-4 border-b border-scout-800 flex items-center justify-between">
-                      <span className="text-xs font-bold text-scout-400 uppercase">Lista</span>
-                      <button onClick={handleOpenAddPlayerModal} className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md"><UserPlus className="w-4 h-4" /></button>
+                
+                {/* LISTA LATERAL (COLLAPSIBLE) */}
+                <div className={`${isMobile && activePlayerId ? 'hidden' : 'flex'} w-full md:w-80 bg-scout-900/30 border-r border-scout-800 flex-col`}>
+                   <div className="p-4 border-b border-scout-800 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-scout-400 uppercase">
+                              Base de Datos ({players.length})
+                          </span>
+                          {isSelectionMode && (
+                              <button onClick={handleSelectAll} className="text-[10px] text-scout-gold hover:underline">
+                                  {selectedPlayers.size === filteredPlayers.length ? 'Deseleccionar' : 'Todos'}
+                              </button>
+                          )}
+                      </div>
+                      <button onClick={handleOpenAddPlayerModal} className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors">
+                          <UserPlus className="w-4 h-4" />
+                      </button>
                    </div>
-                   <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                      {Object.keys(groupedPlayers).map(team => (
-                        <div key={team} className="mb-2">
-                           <div className="px-2 py-1 text-[10px] font-bold text-scout-500 uppercase">{team}</div>
-                           {groupedPlayers[team].map(player => (
-                             <PlayerCard 
-                                key={player.id} 
-                                player={player} 
-                                isActive={player.id === activePlayerId} 
-                                onClick={() => setActivePlayerId(player.id)} 
-                             />
-                           ))}
-                        </div>
-                      ))}
+                   
+                   <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                      {Object.keys(groupedPlayers).length === 0 ? (
+                          <div className="text-center p-8 text-scout-500 text-sm">No se encontraron jugadores.</div>
+                      ) : (
+                          Object.keys(groupedPlayers).map(team => (
+                            <div key={team} className="mb-1">
+                               {/* Team Header */}
+                               <div 
+                                 onClick={() => toggleTeam(team)}
+                                 className="flex items-center justify-between px-3 py-2 bg-scout-800/50 hover:bg-scout-800 rounded-lg cursor-pointer transition-colors group select-none"
+                               >
+                                  <div className="flex items-center gap-2">
+                                      {expandedTeams[team] ? <ChevronDown className="w-3 h-3 text-scout-400" /> : <ChevronRight className="w-3 h-3 text-scout-400" />}
+                                      <span className="text-xs font-bold text-scout-200 uppercase tracking-wide group-hover:text-white transition-colors">{team}</span>
+                                  </div>
+                                  <span className="text-[10px] bg-scout-900 text-scout-500 px-1.5 py-0.5 rounded-full">{groupedPlayers[team].length}</span>
+                               </div>
+                               
+                               {/* Player List */}
+                               {expandedTeams[team] && (
+                                   <div className="mt-1 space-y-1 pl-2 border-l border-scout-800 ml-2 animate-fadeIn">
+                                       {groupedPlayers[team].map(player => (
+                                         <PlayerCard 
+                                            key={player.id} 
+                                            player={player} 
+                                            isActive={player.id === activePlayerId} 
+                                            onClick={() => isSelectionMode ? toggleSelection(player.id) : setActivePlayerId(player.id)}
+                                            isSelectionMode={isSelectionMode}
+                                            isSelected={selectedPlayers.has(player.id)}
+                                            onToggleSelect={(e) => { e.stopPropagation(); toggleSelection(player.id); }}
+                                         />
+                                       ))}
+                                   </div>
+                               )}
+                            </div>
+                          ))
+                      )}
                    </div>
                 </div>
+
+                {/* AREA PRINCIPAL (PERFIL) */}
                 <div className={`${isMobile && !activePlayerId ? 'hidden' : 'flex-1'} bg-[#0b1120] overflow-hidden`}>
                    {activePlayer ? (
                       <PlayerProfile 
@@ -287,14 +430,50 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {/* MODALES */}
       <PlayerFormModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSave={(p) => editingPlayer ? dataService.updatePlayer({...editingPlayer, ...p}) : dataService.addPlayer(p as Player)} 
+        // Corregido: Si editingPlayer es null, usa addPlayer con el nuevo objeto (que no tendrá ID)
+        onSave={(p) => {
+            if (editingPlayer) {
+                dataService.updatePlayer({...editingPlayer, ...p});
+            } else {
+                // Ensure new player has a generated ID if not present in partial
+                const newPlayer = { ...p, id: p.id || nanoid() } as Player;
+                dataService.addPlayer(newPlayer);
+            }
+        }} 
         initialData={editingPlayer} 
         initialTab={modalInitialTab}
         restrictToTab={modalRestrictMode}
       />
+      
+      <ConfirmModal 
+         isOpen={isBulkDeleteOpen}
+         onClose={() => setIsBulkDeleteOpen(false)}
+         title={`Eliminar ${selectedPlayers.size} Jugadores`}
+         message="¿Estás seguro de eliminar estos jugadores de forma permanente? Esta acción no se puede deshacer."
+         confirmText="Eliminar"
+         isDestructive
+         onConfirm={() => {
+             dataService.bulkDeletePlayers(Array.from(selectedPlayers));
+             setSelectedPlayers(new Set());
+             setIsSelectionMode(false);
+         }}
+      />
+
+      <BulkActionModal 
+          isOpen={isBulkGroupOpen}
+          onClose={() => setIsBulkGroupOpen(false)}
+          count={selectedPlayers.size}
+          onConfirm={(teamName) => {
+              dataService.bulkUpdateTeam(Array.from(selectedPlayers), teamName);
+              setSelectedPlayers(new Set());
+              setIsSelectionMode(false);
+          }}
+      />
+
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appSettings} onSave={(s) => dataService.saveSettings(s)} currentUser={user} />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} currentUser={user} onSave={(u) => AuthService.updateCurrentUser(u)} />
     </div>
