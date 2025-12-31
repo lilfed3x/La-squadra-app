@@ -99,9 +99,9 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
   const historyData = player.nutrition?.bodyCompositionHistory || [];
   
   return (
-    <div className="space-y-6 animate-fadeIn pb-6">
+    <div className="space-y-4 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
-         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+         <div className="flex justify-between items-center bg-scout-800 p-3 rounded-xl border border-scout-700">
              <h3 className="font-bold text-white flex items-center gap-2">
                  <Apple className="w-5 h-5 text-green-400" /> Resumen Nutricional
              </h3>
@@ -114,7 +114,7 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
 
          {/* Top Stats Cards */}
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 relative overflow-hidden">
+            <div className="bg-scout-800 p-3 rounded-xl border border-scout-700 relative overflow-hidden">
                <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Estado de Peso</div>
                <div className="flex items-center gap-2">
                   <div className={`text-lg md:text-xl font-bold ${player.nutrition?.weightStatus === 'Óptimo' ? 'text-emerald-400' : player.nutrition?.weightStatus === 'Sobrepeso' ? 'text-red-400' : 'text-yellow-400'}`}>
@@ -123,31 +123,31 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
                   {player.nutrition?.weightStatus === 'Óptimo' && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
                </div>
             </div>
-            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+            <div className="bg-scout-800 p-3 rounded-xl border border-scout-700">
                <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Hidratación</div>
                <div className="text-lg md:text-xl font-bold text-blue-400">{player.nutrition?.hydrationLevel || 0}%</div>
                <div className="w-full bg-scout-900 h-1.5 rounded-full mt-2">
                   <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${player.nutrition?.hydrationLevel || 0}%` }}></div>
                </div>
             </div>
-            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+            <div className="bg-scout-800 p-3 rounded-xl border border-scout-700">
                <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Calorías Diarias</div>
                <div className="text-lg md:text-xl font-bold text-orange-400">{player.nutrition?.dailyCalories || 0} kcal</div>
             </div>
-            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
+            <div className="bg-scout-800 p-3 rounded-xl border border-scout-700">
                <div className="text-[10px] text-scout-500 uppercase font-bold tracking-wider mb-1">Último Chequeo</div>
                <div className="text-lg md:text-xl font-bold text-scout-200">{player.nutrition?.lastCheckup || '-'}</div>
             </div>
          </div>
 
          {/* Charts Row */}
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 shadow-lg flex flex-col">
                <h3 className="text-sm font-bold text-scout-100 flex items-center gap-2 mb-4">
                   <PieChartIcon className="w-4 h-4 text-scout-gold" /> Distribución Macros
                </h3>
                {/* Fixed Height Container for Recharts - Critical for width/height -1 error */}
-               <div className="w-full h-64 min-h-[250px]">
+               <div className="w-full h-56 min-h-[220px]">
                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                        <Pie
@@ -168,13 +168,13 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
                </div>
             </div>
 
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
+            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 shadow-lg flex flex-col">
                <h3 className="text-sm font-bold text-scout-100 flex items-center gap-2 mb-4">
                   <TrendingUp className="w-4 h-4 text-scout-gold" /> Evolución de Peso
                </h3>
                {historyData.length > 0 ? (
                   /* Fixed Height Container for Recharts */
-                  <div className="w-full h-64 min-h-[250px]">
+                  <div className="w-full h-56 min-h-[220px]">
                      <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={historyData}>
                            <defs>
@@ -185,7 +185,7 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
                            </defs>
                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                            <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickFormatter={(val) => val.substring(5)} />
-                           <YAxis domain={[['dataMin - 2'], ['dataMax + 2']]} stroke="#64748b" fontSize={10} width={30} />
+                           <YAxis domain={['dataMin - 2', 'dataMax + 2']} stroke="#64748b" fontSize={10} width={30} />
                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
                            <Area type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorWeight)" />
                         </AreaChart>
@@ -200,8 +200,8 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
          </div>
 
          {/* Lists Row */}
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
                <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider">Suplementación</h3>
                <div className="flex flex-wrap gap-2">
                   {player.nutrition?.supplements && player.nutrition.supplements.length > 0 ? (
@@ -211,7 +211,7 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
                   ) : <span className="text-scout-500 text-sm">No registrado</span>}
                </div>
             </div>
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
+            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
                <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider">Restricciones Dietéticas</h3>
                <div className="flex flex-wrap gap-2">
                   {player.nutrition?.dietaryRestrictions && player.nutrition.dietaryRestrictions.length > 0 ? (
@@ -532,9 +532,9 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
 
 const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void }> = ({ player, onEdit, onPlayerUpdate }) => {
    return (
-      <div className="space-y-6 animate-fadeIn pb-6">
+      <div className="space-y-4 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
-         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+         <div className="flex justify-between items-center bg-scout-800 p-3 rounded-xl border border-scout-700">
              <h3 className="font-bold text-white flex items-center gap-2">
                  <ActivityIcon className="w-5 h-5 text-blue-400" /> Informe Físico y Rendimiento
              </h3>
@@ -545,16 +545,16 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
              )}
          </div>
 
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             
             {/* REMOVED: Performance Metrics Sliders (Moved to General Tab as requested) */}
 
             {/* Metrics & Medical History */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
                 
                 {/* Status Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 flex flex-col justify-between relative overflow-hidden">
+                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex flex-col justify-between relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-3 opacity-10">
                             <ActivityIcon className="w-16 h-16" />
                         </div>
@@ -568,7 +568,7 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
                         <p className="text-[10px] text-scout-500 mt-1 relative z-10">Basado en historial reciente</p>
                     </div>
 
-                    <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 flex flex-col justify-between">
+                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex flex-col justify-between">
                         <div className="flex justify-between items-start mb-2">
                             <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Fatiga Acumulada</span>
                             <Zap className="w-5 h-5 text-orange-500" />
@@ -586,16 +586,16 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
                 </div>
 
                 {/* Medical History Cascade System */}
-                <div className="bg-scout-800/50 p-6 rounded-xl border border-scout-700">
+                <div className="bg-scout-800/50 p-4 rounded-xl border border-scout-700">
                     <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} />
                 </div>
 
                 {/* General Fitness Notes */}
-                <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
+                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700">
                     <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider flex items-center gap-2">
                         <FileText className="w-4 h-4"/> Notas del Preparador Físico
                     </h3>
-                    <div className="bg-scout-900/50 p-4 rounded-lg text-sm text-scout-200 italic border border-scout-700/50 leading-relaxed">
+                    <div className="bg-scout-900/50 p-3 rounded-lg text-sm text-scout-200 italic border border-scout-700/50 leading-relaxed">
                         "{player.physical?.fitnessNotes || 'Sin notas registradas actualmente.'}"
                     </div>
                 </div>
@@ -607,9 +607,9 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
 
 const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
    return (
-      <div className="space-y-6 animate-fadeIn pb-6">
+      <div className="space-y-4 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
-         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+         <div className="flex justify-between items-center bg-scout-800 p-3 rounded-xl border border-scout-700">
              <h3 className="font-bold text-white flex items-center gap-2">
                  <Briefcase className="w-5 h-5 text-purple-400" /> Información Contractual
              </h3>
@@ -620,9 +620,9 @@ const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ pl
              )}
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Value Card */}
-            <div className="bg-gradient-to-br from-scout-800 to-scout-900 p-6 rounded-xl border border-scout-700 shadow-lg relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-lg relative overflow-hidden group">
                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                   <DollarSign className="w-24 h-24 text-scout-gold" />
                </div>
@@ -634,7 +634,7 @@ const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ pl
             </div>
 
             {/* Contract Summary */}
-            <div className="bg-scout-800 p-6 rounded-xl border border-scout-700 shadow-lg flex flex-col justify-center">
+            <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 shadow-lg flex flex-col justify-center">
                <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 bg-scout-700 rounded-full flex items-center justify-center">
                      <Briefcase className="w-6 h-6 text-purple-400" />
@@ -654,26 +654,26 @@ const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ pl
 
          {/* Detailed Grid */}
          <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden">
-            <div className="p-4 border-b border-scout-700 bg-scout-900/30">
+            <div className="p-3 border-b border-scout-700 bg-scout-900/30">
                <h3 className="font-bold text-white flex items-center gap-2">
                   <FileText className="w-4 h-4 text-scout-gold" /> Detalles Contractuales
                </h3>
             </div>
             <div className="divide-y divide-scout-700">
-               <div className="grid grid-cols-2 p-4 hover:bg-scout-700/20 transition-colors">
+               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
                   <div className="text-sm text-scout-400">Vencimiento Contrato</div>
                   <div className="text-sm font-medium text-white text-right">{player.contract?.contractExpiration || '-'}</div>
                </div>
-               <div className="grid grid-cols-2 p-4 hover:bg-scout-700/20 transition-colors">
+               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
                   <div className="text-sm text-scout-400">Agencia Representación</div>
                   <div className="text-sm font-medium text-white text-right">{player.contract?.agencyName || '-'}</div>
                </div>
-               <div className="grid grid-cols-2 p-4 hover:bg-scout-700/20 transition-colors">
+               <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors">
                   <div className="text-sm text-scout-400">Contacto Agente</div>
                   <div className="text-sm font-medium text-white text-right">{player.contract?.agencyContact || '-'}</div>
                </div>
                {player.contract?.isLoan && (
-                   <div className="grid grid-cols-2 p-4 hover:bg-scout-700/20 transition-colors bg-purple-500/5">
+                   <div className="grid grid-cols-2 p-3 hover:bg-scout-700/20 transition-colors bg-purple-500/5">
                      <div className="text-sm text-purple-300">Club de Origen</div>
                      <div className="text-sm font-medium text-white text-right">{player.contract?.loanOriginClub || '-'}</div>
                    </div>
@@ -747,8 +747,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   return (
     <div className="h-full flex flex-col bg-[#0b1120] relative overflow-hidden">
       
-      {/* Enhanced Top Bar with better visibility and details */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 border-b border-scout-700 bg-gradient-to-r from-scout-900 via-scout-800 to-scout-900 relative overflow-hidden shrink-0">
+      {/* Enhanced Top Bar with better visibility and details - Denser Padding */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border-b border-scout-700 bg-gradient-to-r from-scout-900 via-scout-800 to-scout-900 relative overflow-hidden shrink-0">
          
          {/* Background pattern */}
          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
@@ -761,12 +761,12 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                  </button>
              )}
              
-             {/* Large Player Avatar with Rating Badge */}
+             {/* Large Player Avatar with Rating Badge - Slightly smaller for density */}
              <div className="relative shrink-0">
                  <img 
                     src={player.imageUrl} 
                     alt={player.name} 
-                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-scout-700 shadow-2xl bg-scout-800"
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-4 border-scout-700 shadow-2xl bg-scout-800"
                  />
                  <div className="absolute -bottom-2 -right-2 bg-scout-900 rounded-full p-1">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-scout-gold to-yellow-600 flex items-center justify-center text-scout-900 font-black text-sm border-2 border-scout-900 shadow-lg">
@@ -814,30 +814,30 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
          {/* Actions Toolbar */}
          <div className="flex items-center gap-2 mt-4 md:mt-0 z-10 self-end md:self-center ml-auto md:ml-0">
-             <button onClick={handleGenerateReport} className="p-2.5 text-purple-400 hover:text-white hover:bg-purple-600/20 rounded-lg transition-colors border border-transparent hover:border-purple-500/30" title="Generar Informe IA">
+             <button onClick={handleGenerateReport} className="p-2 text-purple-400 hover:text-white hover:bg-purple-600/20 rounded-lg transition-colors border border-transparent hover:border-purple-500/30" title="Generar Informe IA">
                  <BrainCircuit className="w-5 h-5" />
              </button>
-             <button onClick={() => exportPlayerProfileToPDF(player, notes)} className="p-2.5 text-green-400 hover:text-white hover:bg-green-600/20 rounded-lg transition-colors border border-transparent hover:border-green-500/30" title="Exportar PDF">
+             <button onClick={() => exportPlayerProfileToPDF(player, notes)} className="p-2 text-green-400 hover:text-white hover:bg-green-600/20 rounded-lg transition-colors border border-transparent hover:border-green-500/30" title="Exportar PDF">
                  <FileDown className="w-5 h-5" />
              </button>
              <div className="h-8 w-px bg-scout-700 mx-1"></div>
-             <button onClick={() => onEditPlayer(player)} className="p-2.5 text-scout-400 hover:text-white hover:bg-scout-700 rounded-lg transition-colors" title="Editar Perfil">
+             <button onClick={() => onEditPlayer(player)} className="p-2 text-scout-400 hover:text-white hover:bg-scout-700 rounded-lg transition-colors" title="Editar Perfil">
                  <Edit className="w-5 h-5" />
              </button>
-             <button onClick={() => onDeletePlayer(player.id)} className="p-2.5 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar Jugador">
+             <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar Jugador">
                  <Trash2 className="w-5 h-5" />
              </button>
          </div>
       </div>
 
-      {/* Tabs Navigation (Scrollable) */}
+      {/* Tabs Navigation (Scrollable) - Reduced Padding */}
       <div className="flex border-b border-scout-800 overflow-x-auto no-scrollbar bg-scout-900/30 shrink-0">
          {tabs.map((tab) => (
             <button
                key={tab.id}
                onClick={() => setActiveTab(tab.id as any)}
                className={`
-                  flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2
+                  flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-all border-b-2
                   ${activeTab === tab.id 
                      ? 'border-emerald-500 text-white bg-scout-800' 
                      : 'border-transparent text-scout-400 hover:text-scout-200 hover:bg-scout-800/50'}
@@ -849,15 +849,15 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
          ))}
       </div>
 
-      {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-20 md:pb-6">
+      {/* Main Scrollable Content - Denser Padding */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-4 pb-20 md:pb-4">
         
         {activeTab === 'overview' && (
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fadeIn">
               
               {/* Left Col: Pitch & Basic Stats */}
               <div className="space-y-4">
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg h-80 relative group">
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg h-72 relative group">
                     <div className="absolute inset-0 bg-gradient-to-t from-scout-900/80 to-transparent z-10 pointer-events-none"></div>
                     <div className="absolute bottom-3 left-3 z-20">
                         <span className="text-[10px] text-scout-400 uppercase font-bold tracking-wider">Mapa de Calor / Posición</span>
@@ -870,10 +870,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                     <TacticalPitch position={player.position} />
                  </div>
 
-                 {/* NEW: Radar Chart */}
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4 shadow-lg flex flex-col justify-center items-center relative">
+                 {/* NEW: Radar Chart - Reduced Height */}
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-3 shadow-lg flex flex-col justify-center items-center relative">
                     <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider mb-2 self-start">Radar de Atributos</h3>
-                    <div className="h-64 w-full">
+                    <div className="h-56 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                                 <PolarGrid stroke="#334155" />
@@ -886,8 +886,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                     </div>
                  </div>
 
-                 {/* Basic Stats Grid */}
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4 relative group">
+                 {/* Basic Stats Grid - Denser */}
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-3 relative group">
                     <div className="flex justify-between items-center mb-3">
                         <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider">Atributos Principales</h3>
                         <button 
@@ -921,9 +921,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               {/* Middle/Right Col: Detailed Views */}
               <div className="lg:col-span-2 space-y-4">
                   
-                  {/* Physical & Contract Teasers (Clickable to switch tabs OR edit) */}
+                  {/* Physical & Contract Teasers (MOVED TO TOP) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group relative">
+                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-3 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                            <ActivityIcon className="w-5 h-5 text-blue-400" />
                            <div className="flex gap-2">
@@ -939,7 +939,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                         <div className="text-2xl font-bold text-white mb-1">{player.physical?.recoveryStatus || 'N/A'}</div>
                         <p className="text-xs text-scout-500">Estado Físico Actual</p>
                      </div>
-                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group relative">
+                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-3 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                            <Briefcase className="w-5 h-5 text-purple-400" />
                            <div className="flex gap-2">
@@ -957,8 +957,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                      </div>
                   </div>
 
-                  {/* Latest Note Teaser */}
-                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-5 rounded-xl border border-scout-700 shadow-md">
+                  {/* Latest Note Teaser (MOVED DOWN) */}
+                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-md">
                       <div className="flex justify-between items-start mb-3">
                          <h3 className="font-bold text-white flex items-center gap-2">
                             <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
@@ -983,7 +983,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
                   {/* AI Quick Analysis (If available) */}
                   {aiReport && (
-                     <div className="bg-purple-900/10 border border-purple-500/20 p-5 rounded-xl">
+                     <div className="bg-purple-900/10 border border-purple-500/20 p-4 rounded-xl">
                         <h3 className="text-sm font-bold text-purple-300 mb-2 flex items-center gap-2">
                            <BrainCircuit className="w-4 h-4" /> Análisis IA Reciente
                         </h3>
