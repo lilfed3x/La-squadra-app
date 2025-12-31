@@ -2,17 +2,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Player, Note, User, AppSettings } from '../types';
 
-// Helper for standard UUID generation
-export const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
 // ==========================================
 // DATA MAPPERS
 // ==========================================
@@ -83,10 +72,7 @@ class DataService {
   }
 
   public getSetupSQL(): string {
-    return `-- SQL SETUP COMPLETO PARA RECUPERACION --
--- Ejecuta esto en el Editor SQL de Supabase si faltan tablas --
-
--- 1. Tabla Jugadores
+    return `-- SQL SETUP (Simplificado) --
 CREATE TABLE IF NOT EXISTS public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -107,7 +93,6 @@ CREATE TABLE IF NOT EXISTS public.players (
   nutrition JSONB DEFAULT '{}'::jsonb
 );
 
--- 2. Tabla Notas
 CREATE TABLE IF NOT EXISTS public.notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   player_id UUID REFERENCES public.players(id) ON DELETE CASCADE,
@@ -123,7 +108,6 @@ CREATE TABLE IF NOT EXISTS public.notes (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Tabla Perfiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT,
@@ -136,7 +120,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   approved BOOLEAN DEFAULT false
 );
 
--- 4. Tabla Config
 CREATE TABLE IF NOT EXISTS public.app_config (
   id INTEGER PRIMARY KEY,
   app_name TEXT DEFAULT 'LA SQUADRA',
@@ -144,7 +127,7 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 );
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
--- Policies (Seguridad) --
+-- Policies --
 ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -152,17 +135,14 @@ ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Access" ON public.players;
 CREATE POLICY "Public Access" ON public.players FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public Access Notes" ON public.notes;
 CREATE POLICY "Public Access Notes" ON public.notes FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public Access Profiles" ON public.profiles;
 CREATE POLICY "Public Access Profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public Access Config" ON public.app_config;
 CREATE POLICY "Public Access Config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);
 
--- Realtime (Sincronización) --
+-- Realtime --
 ALTER TABLE public.players REPLICA IDENTITY FULL;
 DROP PUBLICATION IF EXISTS supabase_realtime;
 CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, public.profiles, public.app_config;
@@ -178,6 +158,8 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     // Suscripciones Realtime
     supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+        // Si el evento viene de mi propia acción (insert/delete), ya lo actualicé localmente.
+        // Pero para sincronizar con otros, hacemos fetch.
         this.fetchPlayers();
       })
       .subscribe();
@@ -290,12 +272,8 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
   // --- WRITE OPERATIONS (Optimistic) ---
 
   public async addPlayer(player: Player) {
-    // FIX: Ensure standard UUID to satisfy DB constraint
-    const playerId = (player.id && player.id.length > 20) ? player.id : generateUUID();
-    
     // 1. Crear objeto DB
     const dbPlayer = {
-      id: playerId, // Forzar ID
       name: player.name,
       team: player.team,
       position: player.position,
@@ -313,31 +291,26 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       nutrition: player.nutrition
     };
     
-    // 2. Optimistic Update
-    const tempPlayer = { ...player, id: playerId };
+    // 2. ACTUALIZACIÓN OPTIMISTA: Agregar localmente antes de que la DB responda
+    // Asignamos un ID temporal si es necesario, aunque en refresh se sobrescribirá
+    const tempPlayer = { ...player, id: player.id.startsWith('temp') ? player.id : 'temp-' + Date.now() };
     this.players = [tempPlayer, ...this.players]; 
-    this.notifyListeners(); 
+    this.notifyListeners(); // Actualizar UI inmediatamente
 
     // 3. Insertar en DB
     const { data, error } = await supabase.from('players').insert([dbPlayer]).select();
     
     if (error) {
         alert("Error al guardar: " + error.message);
-        // Rollback
-        this.players = this.players.filter(p => p.id !== playerId);
+        // Revertir si falla
+        this.players = this.players.filter(p => p.id !== tempPlayer.id);
         this.notifyListeners();
     } else if (data && data[0]) {
-        // Confirmar con datos reales
+        // Reemplazar el temporal con el real de la DB
         const realPlayer = mapPlayerFromDB(data[0]);
-        this.players = this.players.map(p => p.id === playerId ? realPlayer : p);
+        this.players = this.players.map(p => p.id === tempPlayer.id ? realPlayer : p);
         this.notifyListeners();
     }
-  }
-
-  public async bulkImportPlayers(players: Player[]) {
-     for (const p of players) {
-         await this.addPlayer(p);
-     }
   }
 
   public async updatePlayer(player: Player) {
@@ -386,45 +359,14 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     }
   }
 
-  public async bulkDeletePlayers(ids: string[]) {
-      const originalList = [...this.players];
-      this.players = this.players.filter(p => !ids.includes(p.id));
-      this.notifyListeners();
-
-      const { error } = await supabase.from('players').delete().in('id', ids);
-      if (error) {
-          alert("Error en eliminación masiva: " + error.message);
-          this.players = originalList;
-          this.notifyListeners();
-      }
-  }
-
-  public async bulkUpdateTeam(ids: string[], newTeam: string) {
-      const originalList = [...this.players];
-      
-      // Optimistic
-      this.players = this.players.map(p => ids.includes(p.id) ? { ...p, team: newTeam, contract: { ...p.contract!, clubName: newTeam } } : p);
-      this.notifyListeners();
-
-      const { error } = await supabase.from('players').update({ team: newTeam }).in('id', ids);
-      
-      if (error) {
-           this.players = originalList;
-           this.notifyListeners();
-      }
-  }
-
   public async clearPlayers() {
     this.players = [];
     this.notifyListeners();
-    // Safe clear: exclude special ID just in case
     await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   }
 
   public async addNote(note: Note) {
     const dbNote = {
-      // FIX: Ensure ID is standard UUID
-      id: (note.id && note.id.length > 20) ? note.id : generateUUID(),
       player_id: note.playerId,
       scout_id: note.scoutId,
       content: note.content,
@@ -488,6 +430,8 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       this.users = this.users.filter(u => u.id !== userId);
       this.notifyListeners();
       await supabase.from('profiles').delete().eq('id', userId);
+      // Nota: auth.users no se puede borrar desde el cliente sin una Edge Function de admin,
+      // pero borrar el perfil bloquea el acceso en la app.
   }
 }
 
