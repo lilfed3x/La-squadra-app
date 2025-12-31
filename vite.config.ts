@@ -14,7 +14,14 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
+        injectRegister: 'auto', // Auto inject service worker registration and manifest link
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], // Ensure offline caching
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true
+        },
         devOptions: {
           enabled: true // Enable PWA in dev mode for testing
         },
@@ -22,10 +29,12 @@ export default defineConfig(({ mode }) => {
           name: 'LA SQUADRA',
           short_name: 'La Squadra',
           description: 'Plataforma profesional de scouting de fútbol.',
-          theme_color: '#000000',
-          background_color: '#000000',
-          display: 'standalone',
+          theme_color: '#0f172a', // Match bg-scout-900
+          background_color: '#0f172a',
+          display: 'standalone', // CRITICAL: Removes browser URL bar
           orientation: 'portrait',
+          start_url: '/', // CRITICAL: Ensures app starts at root, not an arbitrary URL
+          scope: '/',
           icons: [
             {
               src: 'pwa-icon.png',
@@ -38,6 +47,15 @@ export default defineConfig(({ mode }) => {
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any maskable'
+            }
+          ],
+          shortcuts: [
+            {
+              name: "Base de Datos",
+              short_name: "Jugadores",
+              description: "Ver lista de jugadores",
+              url: "/?mode=database",
+              icons: [{ src: "pwa-icon.png", sizes: "192x192" }]
             }
           ]
         }

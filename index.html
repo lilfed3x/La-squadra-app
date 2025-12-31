@@ -1,21 +1,19 @@
+
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="Plataforma profesional de scouting de fútbol con soporte offline.">
     
     <!-- PWA / Mobile Web App Capability -->
-    <link rel="manifest" href="/manifest.json" />
+    <!-- Manifest is injected by VitePWA, do not add manually -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="La Squadra">
     <link rel="apple-touch-icon" href="/pwa-icon.png">
     <link rel="icon" href="/pwa-icon.png">
-    
-    <!-- iOS Splash Screen Fixes (General) -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
     
     <title>LA SQUADRA</title>
     <!-- Tailwind via CDN for quick styling without build config complexity, though local install is in package.json as an option -->
@@ -52,7 +50,7 @@
     </script>
     <style>
       body {
-        background-color: #000000; /* Match splash screen */
+        background-color: #0f172a; /* Match theme color */
         color: #f8fafc;
         overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
       }
