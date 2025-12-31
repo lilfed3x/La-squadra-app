@@ -206,7 +206,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                 
                 {/* Edit/Delete Actions */}
                 {isOwner && (
-                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
+                   <div className="absolute top-3 right-3 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => onEditNote && onEditNote(note)}
                         className="p-1.5 bg-scout-700 hover:bg-blue-500/20 text-scout-400 hover:text-blue-400 rounded-md transition-colors"
