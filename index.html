@@ -7,17 +7,16 @@
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="Plataforma profesional de scouting de fútbol con soporte offline.">
     
-    <!-- PWA / Mobile Web App Capability -->
-    <!-- Manifest is injected by VitePWA, do not add manually -->
-    <meta name="mobile-web-app-capable" content="yes"> <!-- Android Chrome Legacy -->
-    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- iOS Safari -->
+    <!-- PWA Setup -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="La Squadra">
     <link rel="apple-touch-icon" href="/pwa-icon.png">
     <link rel="icon" href="/pwa-icon.png">
     
     <title>LA SQUADRA</title>
-    <!-- Tailwind via CDN for quick styling without build config complexity, though local install is in package.json as an option -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
@@ -86,7 +85,8 @@
     "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "nanoid": "https://esm.sh/nanoid@^5.1.6",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
-    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0",
+    "virtual:pwa-register": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>

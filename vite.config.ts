@@ -6,7 +6,6 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
-  // Carga variables de entorno del sistema (como las de Vercel)
   const env = loadEnv(mode, process.cwd(), '');
   
   return {
@@ -14,82 +13,58 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto', 
+        injectRegister: null, // Desactivamos inyección automática para hacerlo manual y robusto
+        manifestFilename: 'manifest.webmanifest', // Nombre estándar distinto al físico para evitar conflictos
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
-        manifestFilename: 'manifest.json', // Force output filename
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], 
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            }
-          ]
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // Aumentar límite a 4MB
         },
         devOptions: {
-          enabled: true 
+          enabled: true,
+          type: 'module'
         },
         manifest: {
-          id: '/', // CRITICAL for PWA recognition
+          id: 'lasquadra-app',
           name: 'LA SQUADRA',
           short_name: 'La Squadra',
           description: 'Plataforma profesional de scouting de fútbol.',
           theme_color: '#0f172a',
           background_color: '#0f172a',
-          display: 'standalone', // Enforces App Mode
-          display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+          display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
           scope: '/',
           icons: [
             {
-              src: 'pwa-icon.png',
+              src: '/pwa-icon.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any' // Standard icon
+              purpose: 'any'
             },
             {
-              src: 'pwa-icon.png',
+              src: '/pwa-icon.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'maskable' // Android adaptive icon
+              purpose: 'maskable'
             },
             {
-              src: 'pwa-icon.png',
+              src: '/pwa-icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'pwa-icon.png',
+              src: '/pwa-icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
             }
           ],
-          shortcuts: [
-            {
-              name: "Base de Datos",
-              short_name: "Jugadores",
-              description: "Ver lista de jugadores",
-              url: "/?mode=database",
-              icons: [{ src: "pwa-icon.png", sizes: "192x192" }]
-            }
-          ],
-          categories: ["sports", "productivity", "utilities"]
+          categories: ["sports", "productivity"]
         }
       })
     ],
@@ -119,7 +94,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@supabase')) return 'supabase';
               if (id.includes('jspdf')) return 'jspdf';
               if (id.includes('xlsx')) return 'xlsx';
-              if (id.includes('lucide-react')) return 'icons';
               return 'vendor';
             }
           }

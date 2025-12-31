@@ -14,7 +14,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { BulkActionModal } from './components/BulkActionModal';
 import { Dashboard } from './components/Dashboard';
-import { UpdatePrompt } from './components/UpdatePrompt'; // Import PWA update prompt
+import { UpdatePrompt } from './components/UpdatePrompt'; 
 import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, CloudLightning, Shield, Download, CloudOff, AlertTriangle, Copy, Check, RefreshCw, X, CheckSquare, Trash2, ArrowRightLeft, Smartphone } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
@@ -23,7 +23,7 @@ type ViewMode = 'dashboard' | 'database' | 'profile_view';
 const App: React.FC = () => {
   // DEV MODE: Usamos un UUID válido para evitar errores en Postgres
   const [user, setUser] = useState<User | null>({
-    id: '00000000-0000-0000-0000-000000000001', // UUID válido para dev
+    id: '00000000-0000-0000-0000-000000000001', 
     name: 'Desarrollador (Admin)',
     email: 'dev@lasquadra.com',
     role: 'admin',
@@ -84,11 +84,19 @@ const App: React.FC = () => {
   // PWA Install Prompt Listener
   useEffect(() => {
     const handler = (e: any) => {
-      e.preventDefault();
+      // IMPORTANTE: NO llamamos a e.preventDefault() aquí.
+      // Al no prevenirlo, permitimos que el navegador muestre su propio "cartel" o mini-infobar automáticamente.
+      // Aún así, guardamos el evento para poder activar la instalación manualmente desde nuestro botón si el usuario cierra el cartel nativo.
       setDeferredPrompt(e);
       setShowInstallButton(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
+    
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        setShowInstallButton(false);
+    }
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -158,20 +166,13 @@ const App: React.FC = () => {
     return () => { unsubscribe(); };
   }, []);
 
-  // Dynamic PWA Icons Only (Manifest reverted to static for stability)
+  // Dynamic PWA Icons
   useEffect(() => {
-    // 1. Update Title
     document.title = appSettings.appName;
-
-    // 2. Update Icons visually
     if (appSettings.appLogoUrl) {
       const logoUrl = appSettings.appLogoUrl;
-      
-      // Update Apple Touch Icon
       const appleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
       if (appleIcon) appleIcon.href = logoUrl;
-
-      // Update Favicon
       let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
       if (!favicon) {
         favicon = document.createElement('link');
@@ -492,10 +493,9 @@ const App: React.FC = () => {
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full pb-16 md:pb-0">
         
-        {/* HEADER (Simplified for Mobile) */}
+        {/* HEADER */}
         <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30 gap-4">
           <div className="flex items-center gap-3 shrink-0">
-             {/* Logo in Header for Mobile only */}
              {isMobile && (
                  <div className="w-8 h-8 bg-scout-800 rounded-lg flex items-center justify-center border border-scout-700 overflow-hidden">
                      {appSettings.appLogoUrl ? <img src={appSettings.appLogoUrl} alt="Logo" className="w-full h-full object-cover" /> : <Shield className="w-5 h-5 text-scout-gold" />}
@@ -508,7 +508,7 @@ const App: React.FC = () => {
           
           <div className="flex-1 flex justify-end items-center gap-2 max-w-xl">
              
-             {/* SEARCH BAR (GLOBAL) */}
+             {/* SEARCH BAR */}
              <div className="relative w-full max-w-md" ref={searchContainerRef}>
                 <div className="relative">
                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
@@ -532,7 +532,7 @@ const App: React.FC = () => {
                    )}
                 </div>
 
-                {/* SEARCH SUGGESTIONS DROPDOWN */}
+                {/* SEARCH SUGGESTIONS */}
                 {showSearchSuggestions && searchSuggestions.length > 0 && (
                    <div className="absolute top-full left-0 right-0 mt-2 bg-scout-800 border border-scout-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
                       <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
@@ -574,11 +574,8 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-hidden relative">
-          
-          {/* DASHBOARD VIEW */}
           {viewMode === 'dashboard' && <Dashboard players={players} />}
           
-          {/* PROFILE VIEW (Mobile Only for User Profile) */}
           {viewMode === 'profile_view' && (
               <div className="p-6 flex flex-col items-center justify-center h-full">
                   <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-scout-700 mb-4">
@@ -598,28 +595,16 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* DATABASE VIEW */}
           {viewMode === 'database' && (
              <div className="flex h-full relative">
-                
-                {/* LIST PANEL */}
-                <div className={`
-                    ${isMobile && activePlayerId && !isSelectionMode ? 'hidden' : 'flex'}
-                    w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col transition-all duration-300
-                `}>
+                <div className={`${isMobile && activePlayerId && !isSelectionMode ? 'hidden' : 'flex'} w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col transition-all duration-300`}>
                    <div className="w-full flex flex-col h-full">
                      <div className="p-4 border-b border-scout-800 flex flex-col gap-2">
                         <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Jugadores ({filteredPlayers.length})</span>
                             
                             <div className="flex gap-1">
-                                <button 
-                                    onClick={toggleSelectionMode} 
-                                    className={`p-1.5 rounded-md transition-colors ${isSelectionMode ? 'bg-scout-gold text-scout-900' : 'bg-scout-800 hover:bg-scout-700 text-scout-400'}`}
-                                    title="Modo Selección"
-                                >
-                                    <CheckSquare className="w-4 h-4" />
-                                </button>
+                                <button onClick={toggleSelectionMode} className={`p-1.5 rounded-md transition-colors ${isSelectionMode ? 'bg-scout-gold text-scout-900' : 'bg-scout-800 hover:bg-scout-700 text-scout-400'}`} title="Modo Selección"><CheckSquare className="w-4 h-4" /></button>
                                 {!isSelectionMode && (
                                     <>
                                         <button onClick={handleExportAll} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-colors"><Download className="w-4 h-4" /></button>
@@ -629,27 +614,12 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Selection Action Bar */}
                         {isSelectionMode && (
                             <div className="flex items-center gap-2 pt-2 border-t border-scout-700/50 animate-fadeIn">
                                 <span className="text-[10px] text-scout-400 font-bold">{selectedPlayers.size} Seleccionados</span>
                                 <div className="flex gap-1 ml-auto">
-                                    <button 
-                                        onClick={() => setIsBulkModalOpen(true)}
-                                        disabled={selectedPlayers.size === 0}
-                                        className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors disabled:opacity-50"
-                                        title="Mover a Equipo / Agente Libre"
-                                    >
-                                        <ArrowRightLeft className="w-4 h-4" />
-                                    </button>
-                                    <button 
-                                        onClick={handleBulkDelete}
-                                        disabled={selectedPlayers.size === 0}
-                                        className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors disabled:opacity-50"
-                                        title="Eliminar Seleccionados"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <button onClick={() => setIsBulkModalOpen(true)} disabled={selectedPlayers.size === 0} className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-md transition-colors disabled:opacity-50"><ArrowRightLeft className="w-4 h-4" /></button>
+                                    <button onClick={handleBulkDelete} disabled={selectedPlayers.size === 0} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             </div>
                         )}
@@ -686,11 +656,7 @@ const App: React.FC = () => {
                    </div>
                 </div>
                 
-                {/* DETAIL PANEL */}
-                <div className={`
-                    ${(isMobile && !activePlayerId) || (isMobile && isSelectionMode) ? 'hidden' : 'flex-1'}
-                    bg-[#0b1120] overflow-hidden absolute md:relative inset-0 md:inset-auto z-20 md:z-auto
-                `}>
+                <div className={`${(isMobile && !activePlayerId) || (isMobile && isSelectionMode) ? 'hidden' : 'flex-1'} bg-[#0b1120] overflow-hidden absolute md:relative inset-0 md:inset-auto z-20 md:z-auto`}>
                    {activePlayer ? (
                       <PlayerProfile 
                         player={activePlayer} 
@@ -731,26 +697,13 @@ const App: React.FC = () => {
       {/* MOBILE BOTTOM NAVIGATION BAR */}
       {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 h-16 bg-scout-900 border-t border-scout-800 flex justify-around items-center z-50 shadow-2xl safe-area-bottom">
-              <button 
-                onClick={() => handleNavClick('dashboard')}
-                className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'dashboard' ? 'text-scout-gold' : 'text-scout-500'}`}
-              >
-                  <LayoutDashboard className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-medium">Panel</span>
+              <button onClick={() => handleNavClick('dashboard')} className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'dashboard' ? 'text-scout-gold' : 'text-scout-500'}`}>
+                  <LayoutDashboard className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Panel</span>
               </button>
-              
-              <button 
-                onClick={() => handleNavClick('database')}
-                className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-500'}`}
-              >
-                  <Users className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-medium">Jugadores</span>
+              <button onClick={() => handleNavClick('database')} className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-500'}`}>
+                  <Users className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Jugadores</span>
               </button>
-
-              <button 
-                onClick={() => handleNavClick('profile_view')}
-                className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'profile_view' ? 'text-scout-gold' : 'text-scout-500'}`}
-              >
+              <button onClick={() => handleNavClick('profile_view')} className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'profile_view' ? 'text-scout-gold' : 'text-scout-500'}`}>
                   <div className={`w-7 h-7 rounded-full overflow-hidden border-2 mb-0.5 ${viewMode === 'profile_view' ? 'border-scout-gold' : 'border-scout-600'}`}>
                       <img src={user.avatar} alt="Me" className="w-full h-full object-cover" />
                   </div>
@@ -759,33 +712,11 @@ const App: React.FC = () => {
           </div>
       )}
 
-      <PlayerFormModal 
-         isOpen={isModalOpen} 
-         onClose={() => setIsModalOpen(false)} 
-         onSave={handleSavePlayer} 
-         initialData={editingPlayer}
-         initialTab={modalInitialTab}
-         restrictToTab={modalRestrictToTab}
-      />
+      <PlayerFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSavePlayer} initialData={editingPlayer} initialTab={modalInitialTab} restrictToTab={modalRestrictToTab} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appSettings} onSave={handleSaveSettings} currentUser={user} />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} currentUser={user} onSave={handleUpdateProfile} />
-      
-      {/* Custom Confirmation Modals */}
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen} 
-        title={confirmModal.title}
-        message={confirmModal.message}
-        isDestructive={confirmModal.isDestructive}
-        onConfirm={confirmModal.onConfirm}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-      />
-
-      <BulkActionModal 
-        isOpen={isBulkModalOpen}
-        onClose={() => setIsBulkModalOpen(false)}
-        onConfirm={handleBulkMove}
-        count={selectedPlayers.size}
-      />
+      <ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} isDestructive={confirmModal.isDestructive} onConfirm={confirmModal.onConfirm} onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} />
+      <BulkActionModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} onConfirm={handleBulkMove} count={selectedPlayers.size} />
     </div>
   );
 };
