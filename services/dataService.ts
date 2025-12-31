@@ -2,35 +2,24 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Player, Note, User, AppSettings } from '../types';
 
-// Utility for safe UUIDs
-export const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// --- DATA MAPPERS (Safety First) ---
-const defaultStats = { pace: 60, shooting: 60, passing: 60, dribbling: 60, defending: 60, physical: 60 };
+// ==========================================
+// DATA MAPPERS
+// ==========================================
 
 const mapPlayerFromDB = (p: any): Player => ({
   id: p.id,
-  name: p.name || 'Jugador Sin Nombre',
-  team: p.team || 'Agente Libre',
-  position: p.position || 'Jugador',
+  name: p.name || 'Sin Nombre',
+  team: p.team || '',
+  position: p.position || '',
   country: p.country || '',
   age: Number(p.age) || 0,
   height: p.height || '',
   weight: p.weight || '',
   foot: p.foot || 'Derecha',
-  imageUrl: p.image_url || 'https://cdn-icons-png.flaticon.com/512/4140/4140048.png', 
-  marketValue: p.market_value || '€0M',
-  scoutRating: Number(p.scout_rating) || 60,
-  // CRITICAL: Ensure stats object is never undefined to prevent Profile crash
-  stats: p.stats ? { ...defaultStats, ...p.stats } : defaultStats, 
+  imageUrl: p.image_url || '',
+  marketValue: p.market_value || '',
+  scoutRating: Number(p.scout_rating) || 0,
+  stats: p.stats || {},       
   contract: p.contract || {}, 
   physical: p.physical || {}, 
   nutrition: p.nutrition || {}
@@ -45,10 +34,14 @@ const mapNoteFromDB = (n: any): Note => ({
   tags: n.tags || [],
   attachments: n.attachments || [], 
   timestamp: n.timestamp ? Number(n.timestamp) : Date.now(),
-  isEdited: n.is_edited || false,
+  isEdited: n.is_edited,
   comments: n.comments || [],
   likes: n.likes || []
 });
+
+// ==========================================
+// SERVICE CLASS
+// ==========================================
 
 class DataService {
   private listeners: Set<() => void> = new Set();
@@ -64,27 +57,124 @@ class DataService {
   };
 
   private initialized = false;
+  public dbError: string | null = null;
 
   constructor() {
     const stored = localStorage.getItem('lasquadra_app_settings');
     if (stored) {
         try {
             this.settings = { ...this.settings, ...JSON.parse(stored) };
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error("Error loading settings", e);
+        }
     }
     this.init();
   }
 
+  public getSetupSQL(): string {
+    return `-- SQL SETUP (Simplificado) --
+CREATE TABLE IF NOT EXISTS public.players (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  name TEXT NOT NULL,
+  team TEXT,
+  position TEXT,
+  country TEXT,
+  age INTEGER,
+  height TEXT,
+  weight TEXT,
+  foot TEXT,
+  image_url TEXT,
+  market_value TEXT,
+  scout_rating INTEGER DEFAULT 70,
+  stats JSONB DEFAULT '{}'::jsonb,
+  contract JSONB DEFAULT '{}'::jsonb,
+  physical JSONB DEFAULT '{}'::jsonb,
+  nutrition JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS public.notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  player_id UUID REFERENCES public.players(id) ON DELETE CASCADE,
+  scout_id UUID,
+  content TEXT NOT NULL,
+  category TEXT,
+  tags TEXT[] DEFAULT '{}',
+  attachments JSONB DEFAULT '[]'::jsonb,
+  comments JSONB DEFAULT '[]'::jsonb, 
+  likes JSONB DEFAULT '[]'::jsonb,   
+  timestamp BIGINT,
+  is_edited BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT,
+  role TEXT DEFAULT 'scout',
+  organization TEXT,
+  avatar TEXT,
+  age INTEGER,
+  bio TEXT,
+  email TEXT,
+  approved BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS public.app_config (
+  id INTEGER PRIMARY KEY,
+  app_name TEXT DEFAULT 'LA SQUADRA',
+  app_logo_url TEXT
+);
+INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
+
+-- Policies --
+ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public Access" ON public.players;
+CREATE POLICY "Public Access" ON public.players FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Notes" ON public.notes;
+CREATE POLICY "Public Access Notes" ON public.notes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Profiles" ON public.profiles;
+CREATE POLICY "Public Access Profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public Access Config" ON public.app_config;
+CREATE POLICY "Public Access Config" ON public.app_config FOR ALL USING (true) WITH CHECK (true);
+
+-- Realtime --
+ALTER TABLE public.players REPLICA IDENTITY FULL;
+DROP PUBLICATION IF EXISTS supabase_realtime;
+CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, public.profiles, public.app_config;
+`;
+  }
+
   private async init() {
     if (!isSupabaseConfigured) return;
+    
     await this.refreshAll();
     this.initialized = true;
 
-    // Realtime subscriptions
-    supabase.channel('public:players').on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => this.fetchPlayers()).subscribe();
-    supabase.channel('public:notes').on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => this.fetchNotes()).subscribe();
-    supabase.channel('public:profiles').on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => this.fetchUsers()).subscribe();
-    supabase.channel('public:app_config').on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => this.fetchSettings()).subscribe();
+    // Suscripciones Realtime
+    supabase.channel('public:players')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+        // Si el evento viene de mi propia acción (insert/delete), ya lo actualicé localmente.
+        // Pero para sincronizar con otros, hacemos fetch.
+        this.fetchPlayers();
+      })
+      .subscribe();
+      
+    supabase.channel('public:notes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => this.fetchNotes())
+      .subscribe();
+
+    supabase.channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => this.fetchUsers())
+      .subscribe();
+
+    supabase.channel('public:app_config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => this.fetchSettings())
+      .subscribe();
   }
 
   public subscribe(listener: () => void) {
@@ -97,17 +187,39 @@ class DataService {
   }
 
   public async refreshAll() {
-      await Promise.all([this.fetchPlayers(), this.fetchNotes(), this.fetchUsers(), this.fetchSettings()]);
+      await Promise.all([
+        this.fetchPlayers(),
+        this.fetchNotes(),
+        this.fetchUsers(),
+        this.fetchSettings()
+      ]);
   }
 
   private async fetchPlayers() {
     try {
-      const { data } = await supabase.from('players').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+          .from('players')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+      if (error) {
+        if (error.message.includes("does not exist")) {
+          this.dbError = "TABLAS_FALTANTES";
+        } else {
+          this.dbError = error.message;
+        }
+        this.notifyListeners();
+        return;
+      }
+      
       if (data) {
+        this.dbError = null;
         this.players = data.map(mapPlayerFromDB);
         this.notifyListeners();
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Fetch error:', err);
+    }
   }
 
   private async fetchNotes() {
@@ -134,7 +246,8 @@ class DataService {
           age: p.age,
           bio: p.bio,
           approved: p.approved,
-          passwordHash: '', salt: ''
+          passwordHash: '',
+          salt: ''
         }));
         this.notifyListeners();
       }
@@ -156,12 +269,11 @@ class DataService {
   public getUsers(): User[] { return this.users; }
   public getSettings(): AppSettings { return this.settings; }
 
-  // --- ACTIONS ---
+  // --- WRITE OPERATIONS (Optimistic) ---
 
   public async addPlayer(player: Player) {
-    const playerId = player.id && player.id.length > 10 ? player.id : generateUUID();
+    // 1. Crear objeto DB
     const dbPlayer = {
-      id: playerId,
       name: player.name,
       team: player.team,
       position: player.position,
@@ -179,51 +291,30 @@ class DataService {
       nutrition: player.nutrition
     };
     
-    this.players = [{ ...player, id: playerId }, ...this.players];
-    this.notifyListeners(); 
+    // 2. ACTUALIZACIÓN OPTIMISTA: Agregar localmente antes de que la DB responda
+    // Asignamos un ID temporal si es necesario, aunque en refresh se sobrescribirá
+    const tempPlayer = { ...player, id: player.id.startsWith('temp') ? player.id : 'temp-' + Date.now() };
+    this.players = [tempPlayer, ...this.players]; 
+    this.notifyListeners(); // Actualizar UI inmediatamente
 
-    const { error } = await supabase.from('players').insert([dbPlayer]);
+    // 3. Insertar en DB
+    const { data, error } = await supabase.from('players').insert([dbPlayer]).select();
+    
     if (error) {
-        alert("Error guardando jugador: " + error.message);
-        this.fetchPlayers(); 
+        alert("Error al guardar: " + error.message);
+        // Revertir si falla
+        this.players = this.players.filter(p => p.id !== tempPlayer.id);
+        this.notifyListeners();
+    } else if (data && data[0]) {
+        // Reemplazar el temporal con el real de la DB
+        const realPlayer = mapPlayerFromDB(data[0]);
+        this.players = this.players.map(p => p.id === tempPlayer.id ? realPlayer : p);
+        this.notifyListeners();
     }
   }
 
-  public async bulkImportPlayers(players: Player[]) {
-     const cleanPlayers = players.map(p => ({
-         ...p,
-         id: generateUUID(), // Ensure new IDs for import
-         stats: p.stats || defaultStats
-     }));
-     // Optimistic
-     this.players = [...cleanPlayers, ...this.players];
-     this.notifyListeners();
-
-     // Batch insert? Supabase allows array insert
-     const dbPlayers = cleanPlayers.map(p => ({
-        id: p.id,
-        name: p.name,
-        team: p.team,
-        position: p.position,
-        // ... simple mapping for DB
-        scout_rating: p.scoutRating,
-        stats: p.stats,
-        contract: p.contract,
-        physical: p.physical,
-        nutrition: p.nutrition
-     }));
-
-     // Simple loop for safety against payload limits
-     for (const p of cleanPlayers) {
-         await this.addPlayer(p);
-     }
-  }
-
   public async updatePlayer(player: Player) {
-    this.players = this.players.map(p => p.id === player.id ? player : p);
-    this.notifyListeners();
-
-    await supabase.from('players').update({
+    const dbPlayer = {
       name: player.name,
       team: player.team,
       position: player.position,
@@ -239,32 +330,33 @@ class DataService {
       contract: player.contract,
       physical: player.physical,
       nutrition: player.nutrition
-    }).eq('id', player.id);
-  }
-
-  public async deletePlayer(id: string) {
-    const old = this.players;
-    this.players = this.players.filter(p => p.id !== id);
+    };
+    
+    // Optimistic Update
+    this.players = this.players.map(p => p.id === player.id ? player : p);
     this.notifyListeners();
 
-    const { error } = await supabase.from('players').delete().eq('id', id);
+    const { error } = await supabase.from('players').update(dbPlayer).eq('id', player.id);
     if (error) {
-        this.players = old;
-        this.notifyListeners();
-        alert("Error al eliminar.");
+        console.error(error);
+        this.fetchPlayers(); // Revertir
     }
   }
 
-  public async bulkDeletePlayers(ids: string[]) {
-      this.players = this.players.filter(p => !ids.includes(p.id));
-      this.notifyListeners();
-      await supabase.from('players').delete().in('id', ids);
-  }
+  public async deletePlayer(id: string) {
+    // 1. Optimistic Delete
+    const originalList = [...this.players];
+    this.players = this.players.filter(p => p.id !== id);
+    this.notifyListeners();
 
-  public async bulkUpdateTeam(ids: string[], newTeam: string) {
-      this.players = this.players.map(p => ids.includes(p.id) ? { ...p, team: newTeam } : p);
-      this.notifyListeners();
-      await supabase.from('players').update({ team: newTeam }).in('id', ids);
+    // 2. DB Delete
+    const { error } = await supabase.from('players').delete().eq('id', id);
+    
+    if (error) {
+        alert("Error al eliminar: " + error.message);
+        this.players = originalList; // Revertir
+        this.notifyListeners();
+    }
   }
 
   public async clearPlayers() {
@@ -275,7 +367,6 @@ class DataService {
 
   public async addNote(note: Note) {
     const dbNote = {
-      id: generateUUID(),
       player_id: note.playerId,
       scout_id: note.scoutId,
       content: note.content,
@@ -285,23 +376,35 @@ class DataService {
       timestamp: note.timestamp,
       is_edited: false
     };
+
+    // Optimistic
     this.notes = [note, ...this.notes];
     this.notifyListeners();
-    await supabase.from('notes').insert([dbNote]);
+
+    const { data, error } = await supabase.from('notes').insert([dbNote]).select();
+    if (error) {
+         this.notes = this.notes.filter(n => n.id !== note.id);
+         this.notifyListeners();
+    } else if (data && data[0]) {
+         const realNote = mapNoteFromDB(data[0]);
+         this.notes = this.notes.map(n => n.id === note.id ? realNote : n);
+         this.notifyListeners();
+    }
   }
 
   public async updateNote(note: Note) {
-    this.notes = this.notes.map(n => n.id === note.id ? note : n);
-    this.notifyListeners();
-    await supabase.from('notes').update({
+    const dbNote = {
       content: note.content,
       category: note.category,
       tags: note.tags,
       attachments: note.attachments,
-      is_edited: true,
-      comments: note.comments,
-      likes: note.likes
-    }).eq('id', note.id);
+      is_edited: true
+    };
+    
+    this.notes = this.notes.map(n => n.id === note.id ? note : n);
+    this.notifyListeners();
+
+    await supabase.from('notes').update(dbNote).eq('id', note.id);
   }
 
   public async deleteNote(id: string) {
@@ -313,14 +416,22 @@ class DataService {
   public async saveSettings(newSettings: AppSettings) {
     this.settings = newSettings;
     localStorage.setItem('lasquadra_app_settings', JSON.stringify(newSettings));
+    document.title = newSettings.appName;
     this.notifyListeners();
-    await supabase.from('app_config').upsert({ id: 1, app_name: newSettings.appName, app_logo_url: newSettings.appLogoUrl });
+
+    await supabase.from('app_config').upsert({
+       id: 1,
+       app_name: newSettings.appName,
+       app_logo_url: newSettings.appLogoUrl
+    });
   }
 
   public async deleteUser(userId: string) {
       this.users = this.users.filter(u => u.id !== userId);
       this.notifyListeners();
       await supabase.from('profiles').delete().eq('id', userId);
+      // Nota: auth.users no se puede borrar desde el cliente sin una Edge Function de admin,
+      // pero borrar el perfil bloquea el acceso en la app.
   }
 }
 

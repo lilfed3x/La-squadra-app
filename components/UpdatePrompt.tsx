@@ -1,22 +1,21 @@
-
 import React from 'react';
-import { RefreshCw, X, Zap } from 'lucide-react';
-// Use static import to avoid "Top-level await" build error
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { RefreshCw, X, Zap } from 'lucide-react';
 
 export const UpdatePrompt: React.FC = () => {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r: ServiceWorkerRegistration | undefined) {
+    onRegistered(r) {
+      // Optional: Check for updates periodically
       if (r) {
         setInterval(() => {
           r.update();
-        }, 60 * 1000);
+        }, 60 * 1000); // Check every minute
       }
     },
-    onRegisterError(error: any) {
+    onRegisterError(error) {
       console.log('SW registration error', error);
     },
   });

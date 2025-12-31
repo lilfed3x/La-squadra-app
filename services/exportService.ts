@@ -1,8 +1,7 @@
-
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { Player, Note } from '../types';
-import { dataService, generateUUID } from './dataService';
+import { dataService } from './dataService';
 
 // Helper to resolve scout name
 const getScoutName = (scoutId: string): string => {
@@ -20,7 +19,6 @@ export const exportPlayersToExcel = (players: Player[]) => {
 
   // Flatten the data for Excel rows
   const data = players.map(p => ({
-    ID: p.id,
     Nombre: p.name,
     Equipo: p.team,
     Posición: p.position,
@@ -40,14 +38,14 @@ export const exportPlayersToExcel = (players: Player[]) => {
     Físico: p.stats.physical,
     // Contract
     Club_Propietario: p.contract?.clubName || p.team,
-    Fin_Contrato: p.contract?.contractExpiration || '',
-    Agencia: p.contract?.agencyName || '',
+    Fin_Contrato: p.contract?.contractExpiration || 'N/A',
+    Agencia: p.contract?.agencyName || 'N/A',
     Cedido: p.contract?.isLoan ? 'SI' : 'NO',
     // Physical
-    Estado_Físico: p.physical?.recoveryStatus || '',
-    Riesgo_Lesión: p.physical?.injuryRisk || '',
+    Estado_Físico: p.physical?.recoveryStatus || 'N/A',
+    Riesgo_Lesión: p.physical?.injuryRisk || 'N/A',
     // Nutrition
-    Estado_Peso: p.nutrition?.weightStatus || ''
+    Estado_Peso: p.nutrition?.weightStatus || 'N/A'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -57,81 +55,6 @@ export const exportPlayersToExcel = (players: Player[]) => {
   // Format filename with date
   const dateStr = new Date().toISOString().split('T')[0];
   XLSX.writeFile(workbook, `LaSquadra_Jugadores_${dateStr}.xlsx`);
-};
-
-// --- EXCEL IMPORT ---
-export const readPlayersFromExcel = async (file: File): Promise<Player[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet);
-
-        const players: Player[] = json.map((row: any) => {
-           return {
-             id: generateUUID(), // Use standard UUID
-             name: row['Nombre'] || 'Sin Nombre',
-             team: row['Equipo'] || 'Agente Libre',
-             position: row['Posición'] || '',
-             country: row['País'] || '',
-             age: Number(row['Edad']) || 18,
-             height: row['Altura'] || '',
-             weight: row['Peso'] || '',
-             foot: row['Pie'] || 'Derecha',
-             imageUrl: '', 
-             marketValue: row['Valor_Mercado'] || '',
-             scoutRating: Number(row['Rating_Scout']) || 70,
-             stats: {
-                pace: Number(row['Ritmo']) || 60,
-                shooting: Number(row['Tiro']) || 60,
-                passing: Number(row['Pase']) || 60,
-                dribbling: Number(row['Regate']) || 60,
-                defending: Number(row['Defensa']) || 60,
-                physical: Number(row['Físico']) || 60,
-             },
-             contract: {
-                clubName: row['Club_Propietario'] || row['Equipo'] || '',
-                contractExpiration: row['Fin_Contrato'] || '',
-                agencyName: row['Agencia'] || '',
-                agencyContact: '',
-                agencyContractExpiration: '',
-                isLoan: row['Cedido'] === 'SI',
-                marketValue: row['Valor_Mercado'] || ''
-             },
-             physical: {
-                fatigueLevel: 0,
-                injuryRisk: row['Riesgo_Lesión'] || 'Bajo',
-                recoveryStatus: row['Estado_Físico'] || 'Apto',
-                fitnessNotes: '',
-                lastInjury: ''
-             },
-             nutrition: {
-                weightStatus: row['Estado_Peso'] || 'Óptimo',
-                lastCheckup: '',
-                hydrationLevel: 90,
-                dailyCalories: 3000,
-                macros: { protein: 0, carbs: 0, fats: 0 },
-                bodyCompositionHistory: [],
-                dietaryRestrictions: [],
-                supplements: []
-             }
-           } as Player;
-        });
-
-        resolve(players);
-      } catch (error) {
-        reject(error);
-      }
-    };
-
-    reader.onerror = (error) => reject(error);
-    reader.readAsBinaryString(file);
-  });
 };
 
 // --- PDF EXPORT (INDIVIDUAL PROFILE) ---

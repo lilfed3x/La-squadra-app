@@ -13,30 +13,30 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  passwordHash: string;
+  passwordHash: string; // Store hash, never plain text
   salt: string;
   role: 'admin' | 'scout';
   avatar?: string;
-  organization?: string;
+  // New Profile Fields
+  organization?: string; // Team/Club
   age?: number;
   bio?: string;
-  approved?: boolean;
+  approved?: boolean; // New approval field
+}
+
+export interface AppSettings {
+  appName: string;
+  appLogoUrl: string; // If empty, use default SVG
+  // System Preferences
+  launchAtStartup: boolean;
+  minimizeToTray: boolean;
 }
 
 export interface Scout {
   id: string;
   name: string;
   avatar: string;
-  isOnline: boolean;
-}
-
-export interface Comment {
-  id: string;
-  scoutId: string;
-  scoutName: string;
-  scoutAvatar?: string;
-  content: string;
-  timestamp: number;
+  isOnline?: boolean;
 }
 
 export interface Attachment {
@@ -56,8 +56,8 @@ export interface Note {
   tags: string[];
   attachments: Attachment[];
   isEdited?: boolean;
-  comments?: Comment[];
-  likes?: string[]; // IDs of scouts who liked
+  comments?: any[];
+  likes?: string[];
 }
 
 export interface PlayerStats {
@@ -69,21 +69,22 @@ export interface PlayerStats {
   physical: number;
 }
 
+// New Interfaces for detailed reports
 export interface ContractDetails {
   clubName: string;
-  contractExpiration: string;
+  contractExpiration: string; // YYYY-MM-DD
   agencyName: string;
   agencyContact: string;
-  agencyContractExpiration: string;
+  agencyContractExpiration: string; // YYYY-MM-DD
   isLoan: boolean;
   loanOriginClub?: string;
   marketValue: string;
 }
 
 export interface Macronutrients {
-  protein: number;
-  carbs: number;
-  fats: number;
+  protein: number; // grams
+  carbs: number;   // grams
+  fats: number;    // grams
 }
 
 export interface BodyCompositionEntry {
@@ -95,7 +96,7 @@ export interface BodyCompositionEntry {
 export interface NutritionalReport {
   lastCheckup: string;
   weightStatus: 'Bajo' | 'Óptimo' | 'Sobrepeso';
-  hydrationLevel: number;
+  hydrationLevel: number; // 0-100%
   dailyCalories: number;
   macros: Macronutrients;
   bodyCompositionHistory: BodyCompositionEntry[];
@@ -105,7 +106,7 @@ export interface NutritionalReport {
 
 export interface MedicalReport {
   id: string;
-  date: string;
+  date: string; // YYYY-MM-DD
   title: string;
   description: string;
   severity: 'Baja' | 'Media' | 'Alta' | 'Crítica';
@@ -115,12 +116,12 @@ export interface MedicalReport {
 }
 
 export interface PhysicalProfile {
-  fatigueLevel: number;
+  fatigueLevel: number; // 0-100
   injuryRisk: 'Bajo' | 'Medio' | 'Alto';
   recoveryStatus: string;
   lastInjury?: string;
   fitnessNotes: string;
-  medicalHistory?: MedicalReport[];
+  medicalHistory?: MedicalReport[]; // New field for cascade history
 }
 
 export interface Player {
@@ -130,21 +131,16 @@ export interface Player {
   team: string;
   country: string;
   age: number;
-  height: string;
-  weight: string;
+  height: string; // e.g., "185 cm"
+  weight: string; // e.g., "78 kg"
   foot: 'Derecha' | 'Izquierda' | 'Ambos';
   imageUrl: string;
-  marketValue: string;
+  marketValue: string; // e.g. "€35M"
   stats: PlayerStats;
-  scoutRating: number;
+  scoutRating: number; // 0-100
+  
+  // Extended Data
   contract?: ContractDetails;
   nutrition?: NutritionalReport;
   physical?: PhysicalProfile;
-}
-
-export interface AppSettings {
-  appName: string;
-  appLogoUrl: string;
-  launchAtStartup: boolean;
-  minimizeToTray: boolean;
 }

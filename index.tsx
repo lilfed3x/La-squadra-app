@@ -2,9 +2,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+// Importación explícita para registrar el SW inmediatamente
+import { registerSW } from 'virtual:pwa-register';
 
-// NOTE: Service Worker is registered automatically via vite-plugin-pwa (injectRegister: 'auto')
-// No manual import needed here.
+// Registrar Service Worker para capacidades PWA/Offline
+registerSW({ immediate: true });
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
