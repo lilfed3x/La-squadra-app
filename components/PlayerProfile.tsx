@@ -236,6 +236,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
         description: '',
         severity: 'Baja',
         status: 'Activo',
+        doctorName: '',
         attachments: []
     });
     const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
@@ -313,8 +314,8 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
             description: newReport.description!,
             severity: newReport.severity as any,
             status: newReport.status as any,
+            doctorName: newReport.doctorName || 'Dr. Equipo',
             attachments: newReport.attachments || [],
-            doctorName: 'Dr. Equipo' // Mock
         };
 
         const currentPhysical = player.physical || {
@@ -336,7 +337,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
         
         onUpdate(updatedPlayer);
         setIsEditing(false);
-        setNewReport({ date: new Date().toISOString().split('T')[0], title: '', description: '', severity: 'Baja', status: 'Activo', attachments: [] });
+        setNewReport({ date: new Date().toISOString().split('T')[0], title: '', description: '', severity: 'Baja', status: 'Activo', doctorName: '', attachments: [] });
     };
 
     const handleDeleteReport = (id: string, e: React.MouseEvent) => {
@@ -385,7 +386,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
             {/* EDITOR */}
             {isEditing && (
                 <div className="bg-scout-900 border border-scout-700 rounded-xl p-4 animate-scaleIn mb-6 shadow-xl">
-                    <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                         <div>
                             <label className="text-[10px] text-scout-400 uppercase font-bold">Fecha</label>
                             <input type="date" value={newReport.date} onChange={e => setNewReport({...newReport, date: e.target.value})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none" />
@@ -397,6 +398,10 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
                                 <option>En Tratamiento</option>
                                 <option>Recuperado</option>
                             </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-scout-400 uppercase font-bold">Responsable Médico</label>
+                            <input type="text" placeholder="Ej. Dr. Equipo" value={newReport.doctorName || ''} onChange={e => setNewReport({...newReport, doctorName: e.target.value})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none" />
                         </div>
                     </div>
                     
