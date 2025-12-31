@@ -1047,20 +1047,21 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                           </div>
                       )}
                   </div>
-                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
-                       {viewingItem.type === 'note' && currentUser && viewingItem.data.scoutId === currentUser.id && (
+                  
+                  {/* MODIFIED FOOTER: Only show Delete button if permitted. Removed Close button. */}
+                  {viewingItem.type === 'note' && currentUser && (viewingItem.data.scoutId === currentUser.id || currentUser.role === 'admin') && (
+                      <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
                            <button 
                                onClick={() => {
                                    onDeleteNote(viewingItem.data.id);
                                    setViewingItem(null);
                                }}
-                               className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-lg text-sm transition-colors border border-red-500/20 flex items-center gap-2 mr-auto"
+                               className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-red-500/20 flex items-center gap-2 ml-auto"
                            >
                                <Trash2 className="w-4 h-4" /> Eliminar Nota
                            </button>
-                       )}
-                      <button onClick={() => setViewingItem(null)} className="px-6 py-2 bg-scout-700 hover:bg-scout-600 text-white font-bold rounded-lg text-sm transition-colors">Cerrar</button>
-                  </div>
+                      </div>
+                  )}
               </div>
           </div>
       )}
