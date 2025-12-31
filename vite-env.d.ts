@@ -1,6 +1,30 @@
 
-// Fixed: Removed missing vite/client reference to resolve build error
-// Manually defining ImportMetaEnv to avoid missing type errors
+// Fallback declarations for assets usually provided by vite/client
+declare module '*.svg' {
+  const content: string;
+  export default content;
+}
+declare module '*.png' {
+  const content: string;
+  export default content;
+}
+declare module '*.jpg' {
+  const content: string;
+  export default content;
+}
+declare module '*.jpeg' {
+  const content: string;
+  export default content;
+}
+declare module '*.gif' {
+  const content: string;
+  export default content;
+}
+declare module '*.webp' {
+  const content: string;
+  export default content;
+}
+
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
@@ -11,20 +35,6 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-// FIX: Add module declaration for manual service worker registration (used in index.tsx)
-declare module 'virtual:pwa-register' {
-  export interface RegisterSWOptions {
-    immediate?: boolean
-    onNeedRefresh?: () => void
-    onOfflineReady?: () => void
-    onRegistered?: (registration: ServiceWorkerRegistration | undefined) => void
-    onRegisterError?: (error: any) => void
-  }
-
-  export function registerSW(options?: RegisterSWOptions): (reloadPage?: boolean) => Promise<void>
-}
-
-// Declaration for React hook (used in UpdatePrompt.tsx)
 declare module 'virtual:pwa-register/react' {
   import type { Dispatch, SetStateAction } from 'react';
 
