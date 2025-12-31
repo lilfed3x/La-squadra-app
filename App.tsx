@@ -14,13 +14,12 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { BulkActionModal } from './components/BulkActionModal';
 import { Dashboard } from './components/Dashboard';
 import { UpdatePrompt } from './components/UpdatePrompt'; 
-import { LiveSession } from './components/LiveSession';
-import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, Shield, Download, X, CheckSquare, Trash2, ArrowRightLeft, Zap } from 'lucide-react';
+import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, Shield, Download, X, CheckSquare, Trash2, ArrowRightLeft } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
-type ViewMode = 'dashboard' | 'database' | 'live';
+type ViewMode = 'dashboard' | 'database';
 
-// Usuario por defecto para saltar el Login
+// Usuario por defecto para saltar el Login (Auth Desactivado)
 const BYPASS_USER: User = {
   id: 'admin-bypass',
   email: 'admin@lasquadra.com',
@@ -51,8 +50,13 @@ const App: React.FC = () => {
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
+  
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [modalInitialTab, setModalInitialTab] = useState<ModalTab>('general');
+  const [modalRestrictMode, setModalRestrictMode] = useState(false);
+  
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
@@ -68,7 +72,7 @@ const App: React.FC = () => {
       if (currentUser) {
         setUser(currentUser);
       } else {
-        // Aseguramos que el usuario bypass persista si no hay backend configurado
+        // Aseguramos que el usuario bypass persista
         setUser(BYPASS_USER);
       }
       
@@ -100,7 +104,6 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     AuthService.logout();
-    // En modo bypass, logout simplemente recarga la app (y volverá a entrar como admin)
     window.location.reload();
   };
 
@@ -120,6 +123,13 @@ const App: React.FC = () => {
       likes: []
     };
     dataService.addNote(newNote);
+  };
+
+  const handleOpenAddPlayerModal = () => {
+    setEditingPlayer(null);
+    setModalInitialTab('general');
+    setModalRestrictMode(false);
+    setIsModalOpen(true);
   };
 
   const filteredPlayers = useMemo(() => {
@@ -142,19 +152,23 @@ const App: React.FC = () => {
 
   if (isLoadingAuth) return <div className="h-screen bg-[#0f172a] flex items-center justify-center"><Activity className="w-8 h-8 text-scout-gold animate-spin" /></div>;
   
-  // Condición de AuthPage eliminada/bypass: Si no hay usuario (caso raro), mostramos login, pero por defecto user ya está definido.
   if (!user) return <AuthPage onLoginSuccess={handleLoginSuccess} appSettings={appSettings} />;
 
   return (
     <div className="flex h-screen bg-scout-900 text-scout-100 font-sans overflow-hidden">
       <UpdatePrompt />
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR (Desktop) */}
       {!isMobile && (
         <div className="w-64 bg-scout-900 border-r border-scout-800 flex flex-col flex-shrink-0">
+          {/* Sidebar Header: Usa Logo Manual */}
           <div className="p-6 flex flex-col items-center gap-3 mb-2 cursor-pointer" onClick={() => setViewMode('dashboard')}>
-             <div className="w-16 h-16 bg-gradient-to-br from-scout-900 to-black rounded-xl flex items-center justify-center shadow-lg border border-scout-gold/30">
-               <Shield className="w-8 h-8 text-scout-gold"/>
+             <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-scout-gold/30 bg-scout-900">
+               {appSettings.appLogoUrl ? (
+                  <img src={appSettings.appLogoUrl} alt="App Logo" className="w-full h-full object-cover" />
+               ) : (
+                  <Shield className="w-8 h-8 text-scout-gold"/>
+               )}
              </div>
              <h1 className="font-black text-xl tracking-widest text-white uppercase">{appSettings.appName}</h1>
           </div>
@@ -165,9 +179,6 @@ const App: React.FC = () => {
              </button>
              <button onClick={() => setViewMode('database')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${viewMode === 'database' ? 'bg-scout-800 text-scout-gold border border-scout-700' : 'text-scout-400 hover:text-white hover:bg-scout-800/50'}`}>
                  <Users className="w-5 h-5" /> <span>Base de Datos</span>
-             </button>
-             <button onClick={() => setViewMode('live')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all ${viewMode === 'live' ? 'bg-emerald-500 text-scout-900' : 'bg-scout-800/30 text-emerald-400 hover:bg-scout-800/50'}`}>
-                 <Zap className="w-5 h-5" /> <span>SESIÓN EN VIVO</span>
              </button>
           </div>
           
@@ -192,31 +203,28 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full pb-16 md:pb-0">
         <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30">
           <h2 className="text-lg font-bold text-white">
-            {viewMode === 'dashboard' ? 'Análisis Global' : viewMode === 'live' ? 'Scouting en Tiempo Real' : 'Jugadores'}
+            {viewMode === 'dashboard' ? 'Análisis Global' : 'Jugadores'}
           </h2>
-          {viewMode !== 'live' && (
-            <div className="relative w-64 md:w-80">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
-                <input 
-                    type="text" 
-                    value={playerFilter} 
-                    onChange={(e) => setPlayerFilter(e.target.value)} 
-                    placeholder="Buscar..." 
-                    className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all" 
-                />
-            </div>
-          )}
+          <div className="relative w-64 md:w-80">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
+              <input 
+                  type="text" 
+                  value={playerFilter} 
+                  onChange={(e) => setPlayerFilter(e.target.value)} 
+                  placeholder="Buscar..." 
+                  className="w-full bg-scout-800 text-scout-200 pl-9 pr-4 py-2 rounded-full border border-scout-700 focus:border-scout-gold/50 outline-none text-xs transition-all" 
+              />
+          </div>
         </header>
 
         <main className="flex-1 overflow-hidden relative">
           {viewMode === 'dashboard' && <Dashboard players={players} />}
-          {viewMode === 'live' && <LiveSession players={players} user={user} />}
           {viewMode === 'database' && (
              <div className="flex h-full relative">
                 <div className={`${isMobile && activePlayerId ? 'hidden' : 'flex'} w-full md:w-72 bg-scout-900/30 border-r border-scout-800 flex-col`}>
                    <div className="p-4 border-b border-scout-800 flex items-center justify-between">
                       <span className="text-xs font-bold text-scout-400 uppercase">Lista</span>
-                      <button onClick={() => setIsModalOpen(true)} className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md"><UserPlus className="w-4 h-4" /></button>
+                      <button onClick={handleOpenAddPlayerModal} className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md"><UserPlus className="w-4 h-4" /></button>
                    </div>
                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
                       {Object.keys(groupedPlayers).map(team => (
@@ -239,7 +247,12 @@ const App: React.FC = () => {
                       <PlayerProfile 
                         player={activePlayer} notes={activeNotes} 
                         onAddNote={handleAddNote} onPlayerUpdate={(p) => dataService.updatePlayer(p)}
-                        onEditPlayer={(p) => { setEditingPlayer(p); setIsModalOpen(true); }}
+                        onEditPlayer={(p, tab, restrict) => { 
+                          setEditingPlayer(p); 
+                          setModalInitialTab(tab || 'general');
+                          setModalRestrictMode(!!restrict);
+                          setIsModalOpen(true); 
+                        }}
                         onDeletePlayer={(id) => dataService.deletePlayer(id)}
                         currentUser={user} allUsers={dataService.getUsers()}
                         onEditNote={(n) => dataService.updateNote(n)} onDeleteNote={(id) => dataService.deleteNote(id)}
@@ -252,16 +265,36 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* MOBILE NAV */}
+      {/* MOBILE NAV: Panel | Jugadores | Yo */}
       {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 h-16 bg-scout-900 border-t border-scout-800 flex justify-around items-center z-50">
-              <button onClick={() => setViewMode('dashboard')} className={`flex flex-col items-center ${viewMode === 'dashboard' ? 'text-scout-gold' : 'text-scout-500'}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px]">Panel</span></button>
-              <button onClick={() => setViewMode('live')} className={`flex flex-col items-center ${viewMode === 'live' ? 'text-emerald-400' : 'text-scout-500'}`}><Zap className="w-6 h-6" /><span className="text-[10px]">EN VIVO</span></button>
-              <button onClick={() => setViewMode('database')} className={`flex flex-col items-center ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-500'}`}><Users className="w-6 h-6" /><span className="text-[10px]">Base</span></button>
+              <button onClick={() => setViewMode('dashboard')} className={`flex flex-col items-center w-20 ${viewMode === 'dashboard' ? 'text-scout-gold' : 'text-scout-500'}`}>
+                  <LayoutDashboard className="w-6 h-6" />
+                  <span className="text-[10px] mt-1">Panel</span>
+              </button>
+              
+              <button onClick={() => setViewMode('database')} className={`flex flex-col items-center w-20 ${viewMode === 'database' ? 'text-scout-gold' : 'text-scout-500'}`}>
+                  <Users className="w-6 h-6" />
+                  <span className="text-[10px] mt-1">Jugadores</span>
+              </button>
+              
+              <button onClick={() => setIsProfileModalOpen(true)} className="flex flex-col items-center w-20 text-scout-500">
+                  <div className={`w-6 h-6 rounded-full overflow-hidden border ${isProfileModalOpen ? 'border-scout-gold' : 'border-scout-600'}`}>
+                      <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}`} alt="Yo" className="w-full h-full object-cover" />
+                  </div>
+                  <span className={`text-[10px] mt-1 ${isProfileModalOpen ? 'text-scout-gold' : ''}`}>Yo</span>
+              </button>
           </div>
       )}
 
-      <PlayerFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={(p) => editingPlayer ? dataService.updatePlayer({...editingPlayer, ...p}) : dataService.addPlayer(p as Player)} initialData={editingPlayer} />
+      <PlayerFormModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={(p) => editingPlayer ? dataService.updatePlayer({...editingPlayer, ...p}) : dataService.addPlayer(p as Player)} 
+        initialData={editingPlayer} 
+        initialTab={modalInitialTab}
+        restrictToTab={modalRestrictMode}
+      />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appSettings} onSave={(s) => dataService.saveSettings(s)} currentUser={user} />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} currentUser={user} onSave={(u) => AuthService.updateCurrentUser(u)} />
     </div>

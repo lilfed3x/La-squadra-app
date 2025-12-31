@@ -1,11 +1,11 @@
 
 {
   "id": "/",
-  "name": "LA SQUADRA",
+  "name": "LA SQUADRA SCOUTING",
   "short_name": "La Squadra",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "portrait",
@@ -16,34 +16,13 @@
       "src": "/pwa-icon.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/pwa-icon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/pwa-icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/pwa-icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Base de Datos",
-      "short_name": "Jugadores",
-      "description": "Ver lista de jugadores",
-      "url": "/?mode=database",
-      "icons": [{ "src": "/pwa-icon.png", "sizes": "192x192", "type": "image/png" }]
+      "purpose": "any maskable"
     }
   ],
   "categories": ["sports", "productivity"]
