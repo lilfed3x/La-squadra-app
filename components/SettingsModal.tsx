@@ -18,8 +18,7 @@ type Tab = 'app' | 'users';
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, currentSettings, onSave, currentUser }) => {
   const [activeTab, setActiveTab] = useState<Tab>('app');
   const [formData, setFormData] = useState<AppSettings>(currentSettings);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const titleImageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // User Management State
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -64,18 +63,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'appLogoUrl' | 'appTitleImageUrl') => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Limit size slightly larger for banners
-      if (file.size > 2 * 1024 * 1024) {
-        alert("La imagen es demasiado grande. Máx 2MB.");
+      if (file.size > 1024 * 1024) {
+        alert("La imagen es demasiado grande. Máx 1MB.");
         return;
       }
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (ev.target?.result) {
-          setFormData(prev => ({ ...prev, [field]: ev.target?.result as string }));
+          setFormData(prev => ({ ...prev, appLogoUrl: ev.target?.result as string }));
         }
       };
       reader.readAsDataURL(file);
@@ -222,7 +220,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                         <div className="space-y-4">
                         <h3 className="text-xs uppercase font-bold text-scout-500 tracking-wider border-b border-scout-700 pb-2 mb-3">Personalización (Admin)</h3>
                         
-                        {/* App Name */}
                         <div>
                             <label className="block text-xs text-scout-400 mb-1.5 uppercase font-bold tracking-wider flex items-center gap-2">
                             <Type className="w-4 h-4" /> Nombre de la Aplicación
@@ -237,10 +234,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                             />
                         </div>
 
-                        {/* App Logo (Icon) */}
                         <div>
                             <label className="block text-xs text-scout-400 mb-1.5 uppercase font-bold tracking-wider flex items-center gap-2">
-                            <ImageIcon className="w-4 h-4" /> Logo (Icono Pequeño)
+                            <ImageIcon className="w-4 h-4" /> Logo de la Aplicación
                             </label>
                             
                             <div className="flex gap-2">
@@ -249,84 +245,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                                 value={formData.appLogoUrl} 
                                 onChange={e => setFormData({...formData, appLogoUrl: e.target.value})} 
                                 className="flex-1 bg-scout-900 border border-scout-700 rounded-lg p-3 text-sm text-scout-100 focus:border-scout-gold outline-none transition-colors truncate"
-                                placeholder="URL del logo o subir..."
+                                placeholder="URL de imagen o subir archivo..."
                             />
                             <input 
                                 type="file" 
-                                ref={logoInputRef}
+                                ref={fileInputRef}
                                 className="hidden" 
                                 accept="image/*"
-                                onChange={(e) => handleImageUpload(e, 'appLogoUrl')}
+                                onChange={handleFileSelect}
                             />
                             <button 
                                 type="button"
-                                onClick={() => logoInputRef.current?.click()}
+                                onClick={() => fileInputRef.current?.click()}
                                 className="bg-scout-700 hover:bg-scout-600 text-scout-200 px-4 rounded-lg border border-scout-600 transition-colors flex items-center justify-center"
-                                title="Subir logo"
+                                title="Subir desde ordenador"
                             >
                                 <Upload className="w-5 h-5" />
                             </button>
                             </div>
-                        </div>
-
-                        {/* App Title Image (Banner) */}
-                        <div>
-                            <label className="block text-xs text-scout-400 mb-1.5 uppercase font-bold tracking-wider flex items-center gap-2">
-                            <ImageIcon className="w-4 h-4" /> Imagen de Título (Login Banner)
-                            </label>
-                            
-                            <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                value={formData.appTitleImageUrl || ''} 
-                                onChange={e => setFormData({...formData, appTitleImageUrl: e.target.value})} 
-                                className="flex-1 bg-scout-900 border border-scout-700 rounded-lg p-3 text-sm text-scout-100 focus:border-scout-gold outline-none transition-colors truncate"
-                                placeholder="URL de la imagen de título..."
-                            />
-                            <input 
-                                type="file" 
-                                ref={titleImageInputRef}
-                                className="hidden" 
-                                accept="image/*"
-                                onChange={(e) => handleImageUpload(e, 'appTitleImageUrl')}
-                            />
-                            <button 
-                                type="button"
-                                onClick={() => titleImageInputRef.current?.click()}
-                                className="bg-scout-700 hover:bg-scout-600 text-scout-200 px-4 rounded-lg border border-scout-600 transition-colors flex items-center justify-center"
-                                title="Subir imagen de título"
-                            >
-                                <Upload className="w-5 h-5" />
-                            </button>
-                            </div>
-                            <p className="text-[10px] text-scout-500 mt-1">Esta imagen reemplazará el texto del título en la pantalla de inicio de sesión.</p>
                         </div>
 
                         {/* Preview */}
-                        <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700/50 flex flex-col gap-4">
-                            <div className="text-xs text-scout-500 uppercase font-bold">Vistas Previas:</div>
-                            <div className="flex items-center gap-4">
-                                <div>
-                                    <div className="text-[10px] text-scout-400 mb-1 text-center">Icono</div>
-                                    <div className="w-12 h-12 bg-gradient-to-br from-scout-900 to-black rounded-xl flex items-center justify-center shadow-lg border border-scout-gold/30 overflow-hidden bg-cover bg-center">
-                                        {formData.appLogoUrl ? (
-                                            <img src={formData.appLogoUrl} alt="Preview" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-xs">Sin img</span>
-                                        )}
-                                    </div>
+                        <div className="bg-scout-900/50 p-4 rounded-xl border border-scout-700/50 flex items-center justify-center gap-4">
+                            <div className="text-xs text-scout-500 uppercase font-bold">Vista Previa:</div>
+                            <div className="flex flex-col items-center">
+                                <div className="w-12 h-12 bg-gradient-to-br from-scout-900 to-black rounded-xl flex items-center justify-center shadow-lg border border-scout-gold/30 mb-2 overflow-hidden bg-cover bg-center">
+                                {formData.appLogoUrl ? (
+                                    <img src={formData.appLogoUrl} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                                        <path d="M4 21h16" />
+                                        <path d="M5 21V10a7 7 0 0 1 14 0v11" />
+                                        <path d="M5 10l7-5 7 5" />
+                                        <path d="M8 21V12a4 4 0 0 1 8 0v9" />
+                                        <path d="M12 2v3" />
+                                    </svg>
+                                )}
                                 </div>
-                                
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-scout-400 mb-1 text-center">Banner de Título (Login)</div>
-                                    <div className="h-12 bg-scout-900 rounded-xl border border-scout-700 flex items-center justify-center overflow-hidden">
-                                        {formData.appTitleImageUrl ? (
-                                            <img src={formData.appTitleImageUrl} alt="Banner Preview" className="h-full object-contain" />
-                                        ) : (
-                                            <span className="text-xs text-scout-600 italic">Usará texto por defecto</span>
-                                        )}
-                                    </div>
-                                </div>
+                                <span className="text-xs font-black tracking-widest text-white uppercase">{formData.appName}</span>
                             </div>
                         </div>
                         </div>
@@ -367,7 +323,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, c
                 </form>
             )}
 
-            {/* TAB: USERS MANAGEMENT (Keep Existing Logic) */}
+            {/* TAB: USERS MANAGEMENT */}
             {activeTab === 'users' && (
                 <div className="space-y-4 h-full flex flex-col">
                     {/* User List Header */}
