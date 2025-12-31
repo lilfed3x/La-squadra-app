@@ -5,7 +5,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag, Clock, Tag } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag, Clock, Tag, Film, Maximize2 } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
@@ -45,20 +45,8 @@ const getYoutubeId = (url: string) => {
 const AttachmentPreview: React.FC<{ attachment: Attachment, onRemove?: () => void, onClick?: () => void }> = ({ attachment, onRemove, onClick }) => {
     const isYoutube = attachment.type === 'youtube';
     
-    const handleClick = (e: React.MouseEvent) => {
-        if (onClick) {
-            e.stopPropagation();
-            onClick();
-        } else if (isYoutube) {
-            window.open(attachment.url, '_blank');
-        } else {
-            const w = window.open('about:blank');
-            w?.document.write(`<img src="${attachment.url}" style="max-width:100%"/>`);
-        }
-    };
-
     return (
-        <div className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-900 border border-scout-700 shrink-0 cursor-pointer hover:border-scout-gold transition-colors" onClick={handleClick}>
+        <div className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-900 border border-scout-700 shrink-0 cursor-pointer hover:border-scout-gold transition-colors" onClick={onClick}>
             {isYoutube ? (
                 <div className="w-full h-full relative flex items-center justify-center bg-black">
                     <Youtube className="w-6 h-6 text-red-500" />
@@ -237,9 +225,10 @@ interface MedicalHistorySectionProps {
     player: Player;
     onUpdate: (player: Player) => void;
     onViewReport: (report: MedicalReport) => void;
+    onViewMedia: (attachment: Attachment) => void;
 }
 
-const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, onUpdate, onViewReport }) => {
+const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, onUpdate, onViewReport, onViewMedia }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newReport, setNewReport] = useState<Partial<MedicalReport>>({
         date: new Date().toISOString().split('T')[0],
@@ -452,6 +441,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
                                     key={idx} 
                                     attachment={att} 
                                     onRemove={() => setNewReport(prev => ({...prev, attachments: prev.attachments?.filter((_, i) => i !== idx)}))} 
+                                    onClick={() => onViewMedia(att)}
                                 />
                             ))}
                         </div>
@@ -525,6 +515,15 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </button>
                                                                 </div>
+                                                                
+                                                                {/* Attachments */}
+                                                                {report.attachments && report.attachments.length > 0 && (
+                                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto" onClick={(e) => e.stopPropagation()}>
+                                                                        {report.attachments.map(att => (
+                                                                            <AttachmentPreview key={att.id} attachment={att} onClick={() => onViewMedia(att)} />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -551,7 +550,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
     );
 };
 
-const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void; onViewReport: (r: MedicalReport) => void }> = ({ player, onEdit, onPlayerUpdate, onViewReport }) => {
+const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void; onViewReport: (r: MedicalReport) => void; onViewMedia: (att: Attachment) => void; }> = ({ player, onEdit, onPlayerUpdate, onViewReport, onViewMedia }) => {
    return (
       <div className="space-y-4 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
@@ -608,7 +607,7 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
 
                 {/* Medical History Cascade System */}
                 <div className="bg-scout-800/50 p-4 rounded-xl border border-scout-700">
-                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} onViewReport={onViewReport} />
+                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} onViewReport={onViewReport} onViewMedia={onViewMedia} />
                 </div>
 
                 {/* General Fitness Notes */}
@@ -735,6 +734,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
   // Detail View State (Notes & Medical Reports)
   const [viewingItem, setViewingItem] = useState<{ type: 'note' | 'medical', data: any } | null>(null);
+  
+  // Full Screen Media Viewer State (Lightbox)
+  const [fullScreenMedia, setFullScreenMedia] = useState<Attachment | null>(null);
 
   // Tabs configuration - REORDERED: General -> Contract -> Physical -> Nutrition -> Notes
   const tabs = [
@@ -764,6 +766,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
 
   const handleViewMedicalReport = (report: MedicalReport) => {
       setViewingItem({ type: 'medical', data: report });
+  };
+
+  const handleViewMedia = (attachment: Attachment) => {
+      setFullScreenMedia(attachment);
   };
 
   // Radar Data
@@ -1005,6 +1011,33 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                       {notes.length > 0 ? (
                          <div className="bg-black/20 p-3 rounded-lg border border-white/5 group-hover:bg-black/30 transition-colors">
                             <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
+                            
+                            {/* NEW: Media Preview Strip */}
+                            {notes[0].attachments && notes[0].attachments.length > 0 && (
+                                <div className="flex gap-2 mt-3 overflow-hidden">
+                                    {notes[0].attachments.slice(0, 4).map((att) => (
+                                        <div 
+                                            key={att.id} 
+                                            onClick={(e) => { e.stopPropagation(); handleViewMedia(att); }}
+                                            className="relative w-12 h-12 shrink-0 rounded overflow-hidden border border-white/10 bg-black/40 cursor-pointer hover:border-scout-gold transition-colors group/mini"
+                                        >
+                                            {att.type === 'image' ? (
+                                                <img src={att.url} alt="att" className="w-full h-full object-cover opacity-80 group-hover/mini:opacity-100" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-white/50 group-hover/mini:text-white">
+                                                    {att.type === 'youtube' ? <Youtube className="w-5 h-5" /> : <Film className="w-5 h-5" />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {notes[0].attachments.length > 4 && (
+                                        <div className="w-12 h-12 shrink-0 rounded border border-white/10 bg-white/5 flex items-center justify-center text-[10px] text-scout-400 font-bold">
+                                            +{notes[0].attachments.length - 4}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
                                <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
                                <span>•</span>
@@ -1031,7 +1064,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
            </div>
         )}
 
-        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} onViewReport={handleViewMedicalReport} />}
+        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} onViewReport={handleViewMedicalReport} onViewMedia={handleViewMedia} />}
         
         {activeTab === 'nutrition' && <NutritionContent player={player} onEdit={() => onEditPlayer(player, 'nutrition', true)} />}
         
@@ -1199,11 +1232,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                   {viewingItem.data.attachments.map((att: Attachment) => (
                                       <div key={att.id} className="relative group aspect-square rounded-lg overflow-hidden bg-scout-900 border border-scout-700 hover:border-scout-gold transition-all cursor-pointer" onClick={() => {
-                                          if (att.type === 'youtube') window.open(att.url, '_blank');
-                                          else {
-                                              const w = window.open('about:blank');
-                                              w?.document.write(`<img src="${att.url}" style="max-width:100%"/>`);
-                                          }
+                                          handleViewMedia(att);
                                       }}>
                                           {att.type === 'youtube' ? (
                                               <div className="w-full h-full flex items-center justify-center bg-black">
@@ -1252,6 +1281,59 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                           Cerrar
                       </button>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {/* FULL SCREEN MEDIA VIEWER (LIGHTBOX) */}
+      {fullScreenMedia && (
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col animate-fadeIn">
+              {/* Close Button */}
+              <div className="absolute top-4 right-4 z-50">
+                  <button 
+                      onClick={() => setFullScreenMedia(null)} 
+                      className="p-2 bg-black/50 hover:bg-red-600/80 text-white rounded-full transition-colors border border-white/20"
+                  >
+                      <X className="w-6 h-6" />
+                  </button>
+              </div>
+
+              {/* Content Area */}
+              <div className="flex-1 flex items-center justify-center p-4 md:p-8 overflow-hidden" onClick={() => setFullScreenMedia(null)}>
+                  <div className="relative max-w-full max-h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                      {fullScreenMedia.type === 'image' ? (
+                          <img 
+                              src={fullScreenMedia.url} 
+                              alt={fullScreenMedia.name} 
+                              className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl border border-scout-800" 
+                          />
+                      ) : fullScreenMedia.type === 'video' ? (
+                          <video 
+                              src={fullScreenMedia.url} 
+                              controls 
+                              autoPlay 
+                              className="max-h-[85vh] max-w-full rounded-lg shadow-2xl border border-scout-800"
+                          />
+                      ) : fullScreenMedia.type === 'youtube' ? (
+                          <div className="w-[80vw] h-[80vh] max-w-5xl bg-black rounded-lg overflow-hidden border border-scout-800 shadow-2xl">
+                              <iframe 
+                                  width="100%" 
+                                  height="100%" 
+                                  src={`https://www.youtube.com/embed/${getYoutubeId(fullScreenMedia.url)}?autoplay=1`} 
+                                  title="YouTube video player" 
+                                  frameBorder="0" 
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                  allowFullScreen
+                              ></iframe>
+                          </div>
+                      ) : null}
+                  </div>
+              </div>
+
+              {/* Caption */}
+              <div className="p-4 bg-gradient-to-t from-black to-transparent text-center">
+                  <p className="text-white font-bold text-lg">{fullScreenMedia.name}</p>
+                  {fullScreenMedia.type === 'youtube' && <p className="text-scout-400 text-xs">Reproducción de YouTube</p>}
               </div>
           </div>
       )}
