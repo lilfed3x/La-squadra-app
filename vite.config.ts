@@ -1,5 +1,4 @@
 
-// Fix: Explicitly import process from node:process to resolve TypeScript errors for Node.js globals
 import process from 'node:process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -13,15 +12,14 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto', // AUTOMATIC REGISTRATION to prevent manual errors
+        injectRegister: 'auto',
         manifestFilename: 'manifest.webmanifest',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
         devOptions: {
           enabled: true,
@@ -29,7 +27,7 @@ export default defineConfig(({ mode }) => {
         },
         manifest: {
           id: 'lasquadra-app',
-          name: 'LA SQUADRA',
+          name: 'LA SQUADRA SCOUTING',
           short_name: 'La Squadra',
           description: 'Plataforma profesional de scouting de fútbol.',
           theme_color: '#0f172a',
@@ -43,25 +41,13 @@ export default defineConfig(({ mode }) => {
               src: '/pwa-icon.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: '/pwa-icon.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'maskable'
+              purpose: 'any maskable'
             },
             {
               src: '/pwa-icon.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: '/pwa-icon.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
+              purpose: 'any maskable'
             }
           ],
           categories: ["sports", "productivity"]
@@ -81,19 +67,14 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
-      chunkSizeWarningLimit: 1000,
       rollupOptions: {
-        input: {
-          main: './index.html',
-        },
+        input: { main: './index.html' },
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
               if (id.includes('@google/genai')) return 'genai';
               if (id.includes('recharts')) return 'recharts';
               if (id.includes('@supabase')) return 'supabase';
-              if (id.includes('jspdf')) return 'jspdf';
-              if (id.includes('xlsx')) return 'xlsx';
               return 'vendor';
             }
           }

@@ -1,4 +1,3 @@
-// Fix: Triple-slash directives must be at the top of the file to be correctly recognized by the TypeScript compiler.
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
