@@ -14,39 +14,70 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto', // Auto inject service worker registration and manifest link
+        injectRegister: 'auto', 
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
+        manifestFilename: 'manifest.json', // Force output filename
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], // Ensure offline caching
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], 
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          skipWaiting: true
+          skipWaiting: true,
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            }
+          ]
         },
         devOptions: {
-          enabled: true // Enable PWA in dev mode for testing
+          enabled: true 
         },
         manifest: {
+          id: '/', // CRITICAL for PWA recognition
           name: 'LA SQUADRA',
           short_name: 'La Squadra',
           description: 'Plataforma profesional de scouting de fútbol.',
-          theme_color: '#0f172a', // Match bg-scout-900
+          theme_color: '#0f172a',
           background_color: '#0f172a',
-          display: 'standalone', // CRITICAL: Removes browser URL bar
+          display: 'standalone', // Enforces App Mode
+          display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
           orientation: 'portrait',
-          start_url: '/', // CRITICAL: Ensures app starts at root, not an arbitrary URL
+          start_url: '/',
           scope: '/',
           icons: [
             {
               src: 'pwa-icon.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any' // Standard icon
+            },
+            {
+              src: 'pwa-icon.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable' // Android adaptive icon
             },
             {
               src: 'pwa-icon.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: 'pwa-icon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ],
           shortcuts: [
@@ -57,12 +88,12 @@ export default defineConfig(({ mode }) => {
               url: "/?mode=database",
               icons: [{ src: "pwa-icon.png", sizes: "192x192" }]
             }
-          ]
+          ],
+          categories: ["sports", "productivity", "utilities"]
         }
       })
     ],
     define: {
-      // Mapeo de variables para que estén disponibles en el cliente
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
       'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || '')
@@ -75,36 +106,20 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
-      // Aumentamos el límite de advertencia a 1000 kB (1 MB)
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         input: {
           main: './index.html',
         },
         output: {
-          // Estrategia de división de código manual para optimizar la carga
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              // Separar librerías grandes en sus propios archivos (chunks)
-              if (id.includes('@google/genai')) {
-                return 'genai';
-              }
-              if (id.includes('recharts')) {
-                return 'recharts';
-              }
-              if (id.includes('@supabase')) {
-                return 'supabase';
-              }
-              if (id.includes('jspdf')) {
-                return 'jspdf';
-              }
-              if (id.includes('xlsx')) {
-                return 'xlsx';
-              }
-              if (id.includes('lucide-react')) {
-                return 'icons';
-              }
-              // El resto de dependencias van a un archivo vendor común
+              if (id.includes('@google/genai')) return 'genai';
+              if (id.includes('recharts')) return 'recharts';
+              if (id.includes('@supabase')) return 'supabase';
+              if (id.includes('jspdf')) return 'jspdf';
+              if (id.includes('xlsx')) return 'xlsx';
+              if (id.includes('lucide-react')) return 'icons';
               return 'vendor';
             }
           }
