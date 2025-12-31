@@ -132,12 +132,12 @@ const App: React.FC = () => {
     return () => { unsubscribe(); };
   }, []);
 
-  // Dynamic PWA Metadata & Manifest Update
+  // Dynamic PWA Icons Only (Manifest reverted to static for stability)
   useEffect(() => {
     // 1. Update Title
     document.title = appSettings.appName;
 
-    // 2. Update PWA Icons & Manifest dynamically based on settings
+    // 2. Update Icons visually
     if (appSettings.appLogoUrl) {
       const logoUrl = appSettings.appLogoUrl;
       
@@ -145,7 +145,7 @@ const App: React.FC = () => {
       const appleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
       if (appleIcon) appleIcon.href = logoUrl;
 
-      // Update Favicon (Create if missing)
+      // Update Favicon
       let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
       if (!favicon) {
         favicon = document.createElement('link');
@@ -153,30 +153,6 @@ const App: React.FC = () => {
         document.head.appendChild(favicon);
       }
       favicon.href = logoUrl;
-
-      // Update Manifest (Dynamic Blob)
-      const manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement;
-      if (manifestLink) {
-        const dynamicManifest = {
-          name: appSettings.appName,
-          short_name: appSettings.appName.length > 12 ? appSettings.appName.substring(0, 12) : appSettings.appName,
-          start_url: "/",
-          display: "standalone",
-          background_color: "#000000",
-          theme_color: "#000000",
-          orientation: "portrait",
-          description: "Plataforma profesional de scouting de fútbol.",
-          icons: [
-            { src: logoUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-            { src: logoUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }
-          ]
-        };
-        
-        // Create a blob URL for the manifest
-        const blob = new Blob([JSON.stringify(dynamicManifest)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        manifestLink.href = manifestURL;
-      }
     }
   }, [appSettings]);
 

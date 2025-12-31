@@ -452,8 +452,16 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                  </div>
 
                  {/* Basic Stats Grid */}
-                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4">
-                    <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider mb-3">Atributos Principales</h3>
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4 relative group">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider">Atributos Principales</h3>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'general'); }}
+                            className="text-scout-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <Edit className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                     <div className="space-y-3">
                        {Object.entries(player.stats).map(([key, value]) => (
                           <div key={key}>
@@ -499,20 +507,36 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                       )}
                   </div>
 
-                  {/* Physical & Contract Teasers (Clickable to switch tabs) */}
+                  {/* Physical & Contract Teasers (Clickable to switch tabs OR edit) */}
                   <div className="grid grid-cols-2 gap-4">
-                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group">
+                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                            <ActivityIcon className="w-5 h-5 text-blue-400" />
-                           <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all" />
+                           <div className="flex gap-2">
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'physical'); }} 
+                                 className="text-scout-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                               >
+                                   <Edit className="w-3.5 h-3.5" />
+                               </button>
+                               <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all mt-1" />
+                           </div>
                         </div>
                         <div className="text-2xl font-bold text-white mb-1">{player.physical?.recoveryStatus || 'N/A'}</div>
                         <p className="text-xs text-scout-500">Estado Físico Actual</p>
                      </div>
-                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group">
+                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                            <Briefcase className="w-5 h-5 text-purple-400" />
-                           <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-all" />
+                           <div className="flex gap-2">
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); onEditPlayer(player, 'contract'); }} 
+                                 className="text-scout-500 hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                               >
+                                   <Edit className="w-3.5 h-3.5" />
+                               </button>
+                               <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-all mt-1" />
+                           </div>
                         </div>
                         <div className="text-2xl font-bold text-white mb-1">{player.contract?.contractExpiration ? new Date(player.contract.contractExpiration).getFullYear() : 'N/A'}</div>
                         <p className="text-xs text-scout-500">Fin de Contrato</p>
