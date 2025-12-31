@@ -1,7 +1,17 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Player, Note, User, AppSettings } from '../types';
-import { nanoid } from 'nanoid';
+
+// Helper for standard UUID generation
+export const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 // ==========================================
 // DATA MAPPERS
@@ -74,7 +84,7 @@ class DataService {
 
   public getSetupSQL(): string {
     return `-- SQL SETUP COMPLETO PARA RECUPERACION --
--- Ejecuta esto en el Editor SQL de Supabase para restaurar estructura --
+-- Ejecuta esto en el Editor SQL de Supabase si faltan tablas --
 
 -- 1. Tabla Jugadores
 CREATE TABLE IF NOT EXISTS public.players (
@@ -280,8 +290,8 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
   // --- WRITE OPERATIONS (Optimistic) ---
 
   public async addPlayer(player: Player) {
-    // IMPORTANTE: Asegurar ID antes de enviar
-    const playerId = player.id && !player.id.startsWith('temp') ? player.id : nanoid();
+    // FIX: Ensure standard UUID to satisfy DB constraint
+    const playerId = (player.id && player.id.length > 20) ? player.id : generateUUID();
     
     // 1. Crear objeto DB
     const dbPlayer = {
@@ -313,6 +323,7 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     
     if (error) {
         alert("Error al guardar: " + error.message);
+        // Rollback
         this.players = this.players.filter(p => p.id !== playerId);
         this.notifyListeners();
     } else if (data && data[0]) {
@@ -395,9 +406,6 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       this.players = this.players.map(p => ids.includes(p.id) ? { ...p, team: newTeam, contract: { ...p.contract!, clubName: newTeam } } : p);
       this.notifyListeners();
 
-      // DB update (contract JSONB needs care, simplified here update base column and contract json)
-      // Supabase supports JSONB updates via normal update if constructed right, but looping is safer for partial json updates without stored procedures
-      // To keep it atomic for simple fields:
       const { error } = await supabase.from('players').update({ team: newTeam }).in('id', ids);
       
       if (error) {
@@ -409,11 +417,14 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
   public async clearPlayers() {
     this.players = [];
     this.notifyListeners();
+    // Safe clear: exclude special ID just in case
     await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   }
 
   public async addNote(note: Note) {
     const dbNote = {
+      // FIX: Ensure ID is standard UUID
+      id: (note.id && note.id.length > 20) ? note.id : generateUUID(),
       player_id: note.playerId,
       scout_id: note.scoutId,
       content: note.content,

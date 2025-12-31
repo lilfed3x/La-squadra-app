@@ -5,13 +5,13 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
+import { generateUUID } from '../services/dataService';
 import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag, Clock, Tag, Film, Maximize2 } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
 import { ConfirmModal } from './ConfirmModal';
 import { PlayerStatsDashboard } from './PlayerStatsDashboard';
-import { nanoid } from 'nanoid';
 
 interface PlayerProfileProps {
   player: Player;
@@ -293,7 +293,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
             reader.onload = (ev) => {
                 if (ev.target?.result) {
                     const newAtt: Attachment = {
-                        id: nanoid(),
+                        id: generateUUID(),
                         type: file.type.startsWith('video') ? 'video' : 'image',
                         url: ev.target.result as string,
                         name: file.name
@@ -309,7 +309,7 @@ const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, o
         if (!newReport.title || !newReport.description) return;
         
         const report: MedicalReport = {
-            id: nanoid(),
+            id: generateUUID(),
             date: newReport.date!,
             title: newReport.title!,
             description: newReport.description!,

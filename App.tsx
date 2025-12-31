@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Attachment, Note, NoteCategory, Player, User, AppSettings } from './types';
 import { AuthService } from './services/authService';
-import { dataService } from './services/dataService'; 
+import { dataService, generateUUID } from './services/dataService'; 
 import { exportPlayersToExcel, readPlayersFromExcel } from './services/exportService'; 
 import { AuthPage } from './components/AuthPage';
 import { PlayerCard } from './components/PlayerCard';
@@ -15,7 +15,6 @@ import { BulkActionModal } from './components/BulkActionModal';
 import { Dashboard } from './components/Dashboard';
 import { UpdatePrompt } from './components/UpdatePrompt'; 
 import { Menu, Search, UserPlus, LayoutDashboard, Users, Activity, LogOut, Settings, ChevronUp, ChevronDown, ChevronRight, User as UserIcon, Shield, Download, X, CheckSquare, Trash2, ArrowRightLeft, FileSpreadsheet, Upload } from 'lucide-react';
-import { nanoid } from 'nanoid';
 
 type ViewMode = 'dashboard' | 'database';
 
@@ -129,7 +128,7 @@ const App: React.FC = () => {
   const handleAddNote = (content: string, category: NoteCategory, tags: string[], attachments: Attachment[] = []) => {
     if (!user) return;
     const newNote: Note = {
-      id: nanoid(),
+      id: generateUUID(),
       playerId: activePlayerId,
       scoutId: user.id, 
       content, category, tags,
@@ -439,8 +438,8 @@ const App: React.FC = () => {
             if (editingPlayer) {
                 dataService.updatePlayer({...editingPlayer, ...p});
             } else {
-                // Ensure new player has a generated ID if not present in partial
-                const newPlayer = { ...p, id: p.id || nanoid() } as Player;
+                // Ensure new player has a generated UUID if not present in partial
+                const newPlayer = { ...p, id: p.id || generateUUID() } as Player;
                 dataService.addPlayer(newPlayer);
             }
         }} 

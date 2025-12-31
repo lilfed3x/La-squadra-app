@@ -2,8 +2,7 @@
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { Player, Note } from '../types';
-import { dataService } from './dataService';
-import { nanoid } from 'nanoid';
+import { dataService, generateUUID } from './dataService';
 
 // Helper to resolve scout name
 const getScoutName = (scoutId: string): string => {
@@ -21,7 +20,7 @@ export const exportPlayersToExcel = (players: Player[]) => {
 
   // Flatten the data for Excel rows
   const data = players.map(p => ({
-    ID: p.id, // Export ID to allow updating if needed, though usually import creates new
+    ID: p.id,
     Nombre: p.name,
     Equipo: p.team,
     Posición: p.position,
@@ -75,7 +74,7 @@ export const readPlayersFromExcel = async (file: File): Promise<Player[]> => {
 
         const players: Player[] = json.map((row: any) => {
            return {
-             id: nanoid(), // Generate new ID for import
+             id: generateUUID(), // Use standard UUID instead of nanoid
              name: row['Nombre'] || 'Sin Nombre',
              team: row['Equipo'] || 'Agente Libre',
              position: row['Posición'] || '',
@@ -84,7 +83,7 @@ export const readPlayersFromExcel = async (file: File): Promise<Player[]> => {
              height: row['Altura'] || '',
              weight: row['Peso'] || '',
              foot: row['Pie'] || 'Derecha',
-             imageUrl: '', // Images cannot be imported from Excel easily
+             imageUrl: '', 
              marketValue: row['Valor_Mercado'] || '',
              scoutRating: Number(row['Rating_Scout']) || 70,
              stats: {
