@@ -5,7 +5,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag, Clock, Tag } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
@@ -42,11 +42,23 @@ const getYoutubeId = (url: string) => {
 };
 
 // --- Helper for Attachments Rendering ---
-const AttachmentPreview: React.FC<{ attachment: Attachment, onRemove?: () => void }> = ({ attachment, onRemove }) => {
+const AttachmentPreview: React.FC<{ attachment: Attachment, onRemove?: () => void, onClick?: () => void }> = ({ attachment, onRemove, onClick }) => {
     const isYoutube = attachment.type === 'youtube';
     
+    const handleClick = (e: React.MouseEvent) => {
+        if (onClick) {
+            e.stopPropagation();
+            onClick();
+        } else if (isYoutube) {
+            window.open(attachment.url, '_blank');
+        } else {
+            const w = window.open('about:blank');
+            w?.document.write(`<img src="${attachment.url}" style="max-width:100%"/>`);
+        }
+    };
+
     return (
-        <div className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-900 border border-scout-700 shrink-0">
+        <div className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-900 border border-scout-700 shrink-0 cursor-pointer hover:border-scout-gold transition-colors" onClick={handleClick}>
             {isYoutube ? (
                 <div className="w-full h-full relative flex items-center justify-center bg-black">
                     <Youtube className="w-6 h-6 text-red-500" />
@@ -76,14 +88,6 @@ const AttachmentPreview: React.FC<{ attachment: Attachment, onRemove?: () => voi
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-0.5">
                 <p className="text-[8px] text-white truncate text-center px-1">{attachment.name}</p>
             </div>
-            
-            <div className="absolute inset-0 cursor-pointer" onClick={() => {
-                if (isYoutube) window.open(attachment.url, '_blank');
-                else {
-                    const w = window.open('about:blank');
-                    w?.document.write(`<img src="${attachment.url}" style="max-width:100%"/>`);
-                }
-            }}></div>
         </div>
     );
 };
@@ -229,7 +233,13 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
 
 // --- Medical Report System ---
 
-const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Player) => void }> = ({ player, onUpdate }) => {
+interface MedicalHistorySectionProps {
+    player: Player;
+    onUpdate: (player: Player) => void;
+    onViewReport: (report: MedicalReport) => void;
+}
+
+const MedicalHistorySection: React.FC<MedicalHistorySectionProps> = ({ player, onUpdate, onViewReport }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newReport, setNewReport] = useState<Partial<MedicalReport>>({
         date: new Date().toISOString().split('T')[0],
@@ -491,14 +501,18 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
                                                 {expandedMonths[monthKey] && (
                                                     <div className="p-2 space-y-2 animate-fadeIn">
                                                         {(reports as MedicalReport[]).map(report => (
-                                                            <div key={report.id} className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative">
+                                                            <div 
+                                                                key={report.id} 
+                                                                onClick={() => onViewReport(report)}
+                                                                className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative cursor-pointer"
+                                                            >
                                                                 <div className="flex justify-between items-start">
                                                                     <div>
                                                                         <div className="flex items-center gap-2 mb-1">
                                                                             <span className={`w-2 h-2 rounded-full ${report.status === 'Activo' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></span>
                                                                             <h6 className="text-sm font-bold text-white">{report.title}</h6>
                                                                         </div>
-                                                                        <p className="text-xs text-scout-300 leading-relaxed mb-2">{report.description}</p>
+                                                                        <p className="text-xs text-scout-300 leading-relaxed mb-2 line-clamp-2">{report.description}</p>
                                                                         <div className="flex items-center gap-3 text-[10px] text-scout-500">
                                                                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(report.date).toLocaleDateString()}</span>
                                                                             <span className={`px-1.5 py-0.5 rounded border ${report.severity === 'Alta' || report.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>{report.severity}</span>
@@ -511,15 +525,6 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </button>
                                                                 </div>
-                                                                
-                                                                {/* Attachments */}
-                                                                {report.attachments && report.attachments.length > 0 && (
-                                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto">
-                                                                        {report.attachments.map(att => (
-                                                                            <AttachmentPreview key={att.id} attachment={att} />
-                                                                        ))}
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -546,7 +551,7 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
     );
 };
 
-const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void }> = ({ player, onEdit, onPlayerUpdate }) => {
+const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void; onViewReport: (r: MedicalReport) => void }> = ({ player, onEdit, onPlayerUpdate, onViewReport }) => {
    return (
       <div className="space-y-4 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
@@ -603,7 +608,7 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
 
                 {/* Medical History Cascade System */}
                 <div className="bg-scout-800/50 p-4 rounded-xl border border-scout-700">
-                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} />
+                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} onViewReport={onViewReport} />
                 </div>
 
                 {/* General Fitness Notes */}
@@ -728,6 +733,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
 
+  // Detail View State (Notes & Medical Reports)
+  const [viewingItem, setViewingItem] = useState<{ type: 'note' | 'medical', data: any } | null>(null);
+
   // Tabs configuration - REORDERED: General -> Contract -> Physical -> Nutrition -> Notes
   const tabs = [
     { id: 'overview', label: 'General', icon: ActivityIcon },
@@ -748,6 +756,14 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   const handleEditNoteRequest = (note: Note) => {
       setEditingNote(note);
       setIsNoteEditorOpen(true);
+  };
+
+  const handleViewNote = (note: Note) => {
+      setViewingItem({ type: 'note', data: note });
+  };
+
+  const handleViewMedicalReport = (report: MedicalReport) => {
+      setViewingItem({ type: 'medical', data: report });
   };
 
   // Radar Data
@@ -973,18 +989,21 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                      </div>
                   </div>
 
-                  {/* Latest Note Teaser (MOVED DOWN) */}
-                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-md">
+                  {/* Latest Note Teaser (MOVED DOWN) - Updated to open Modal instead of navigating */}
+                  <div 
+                    onClick={() => notes.length > 0 && handleViewNote(notes[0])}
+                    className="bg-gradient-to-r from-scout-800 to-scout-900 p-4 rounded-xl border border-scout-700 shadow-md cursor-pointer hover:border-scout-gold/50 transition-all group"
+                  >
                       <div className="flex justify-between items-start mb-3">
                          <h3 className="font-bold text-white flex items-center gap-2">
                             <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
                          </h3>
-                         <button onClick={() => setActiveTab('notes')} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
+                         <button onClick={(e) => { e.stopPropagation(); setActiveTab('notes'); }} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
                             Ver todas <ArrowRight className="w-3 h-3" />
                          </button>
                       </div>
                       {notes.length > 0 ? (
-                         <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                         <div className="bg-black/20 p-3 rounded-lg border border-white/5 group-hover:bg-black/30 transition-colors">
                             <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
                             <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
                                <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
@@ -1012,7 +1031,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
            </div>
         )}
 
-        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} />}
+        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} onViewReport={handleViewMedicalReport} />}
         
         {activeTab === 'nutrition' && <NutritionContent player={player} onEdit={() => onEditPlayer(player, 'nutrition', true)} />}
         
@@ -1059,6 +1078,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                          allUsers={allUsers}
                          onEditNote={handleEditNoteRequest}
                          onDeleteNote={onDeleteNote}
+                         onViewNote={handleViewNote}
                       />
                   )}
               </div>
@@ -1107,6 +1127,133 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                )}
             </div>
          </div>
+      )}
+
+      {/* DETAIL MODAL (Notes & Medical) */}
+      {viewingItem && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn">
+              <div className="bg-scout-800 w-full max-w-3xl max-h-[85vh] rounded-2xl border border-scout-700 shadow-2xl flex flex-col animate-scaleIn overflow-hidden">
+                  
+                  {/* Header */}
+                  <div className="p-4 border-b border-scout-700 bg-scout-900/50 flex justify-between items-start shrink-0">
+                      <div>
+                          <div className="flex items-center gap-2 mb-1">
+                              {viewingItem.type === 'note' ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-scout-600 text-scout-300 bg-scout-800">
+                                      {viewingItem.data.category}
+                                  </span>
+                              ) : (
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${viewingItem.data.severity === 'Alta' || viewingItem.data.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>
+                                      {viewingItem.data.severity}
+                                  </span>
+                              )}
+                              <span className="text-xs text-scout-500 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {viewingItem.type === 'note' 
+                                      ? new Date(viewingItem.data.timestamp).toLocaleDateString() + ' ' + new Date(viewingItem.data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                                      : new Date(viewingItem.data.date).toLocaleDateString()
+                                  }
+                              </span>
+                          </div>
+                          <h3 className="text-xl font-bold text-white leading-tight">
+                              {viewingItem.type === 'note' ? 'Detalle de Observación' : viewingItem.data.title}
+                          </h3>
+                      </div>
+                      <button onClick={() => setViewingItem(null)} className="p-2 bg-scout-700/50 hover:bg-scout-700 text-white rounded-full transition-colors">
+                          <X className="w-5 h-5" />
+                      </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0b1120]/30">
+                      <div className="prose prose-invert prose-sm max-w-none">
+                          <p className="text-scout-100 text-base leading-relaxed whitespace-pre-wrap">
+                              {viewingItem.type === 'note' ? viewingItem.data.content : viewingItem.data.description}
+                          </p>
+                      </div>
+
+                      {/* Medical Specific Details */}
+                      {viewingItem.type === 'medical' && (
+                          <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-scout-700/50">
+                              <div className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/30">
+                                  <span className="text-[10px] text-scout-500 uppercase font-bold block mb-1">Estado Actual</span>
+                                  <span className={`text-sm font-bold ${viewingItem.data.status === 'Activo' ? 'text-red-400' : 'text-green-400'}`}>
+                                      {viewingItem.data.status}
+                                  </span>
+                              </div>
+                              <div className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/30">
+                                  <span className="text-[10px] text-scout-500 uppercase font-bold block mb-1">Responsable Médico</span>
+                                  <span className="text-sm font-bold text-white">
+                                      {viewingItem.data.doctorName || 'No asignado'}
+                                  </span>
+                              </div>
+                          </div>
+                      )}
+
+                      {/* Attachments Grid */}
+                      {viewingItem.data.attachments && viewingItem.data.attachments.length > 0 && (
+                          <div className="mt-6 pt-6 border-t border-scout-700/50">
+                              <h4 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                  <Paperclip className="w-3.5 h-3.5" /> Archivos Adjuntos ({viewingItem.data.attachments.length})
+                              </h4>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                  {viewingItem.data.attachments.map((att: Attachment) => (
+                                      <div key={att.id} className="relative group aspect-square rounded-lg overflow-hidden bg-scout-900 border border-scout-700 hover:border-scout-gold transition-all cursor-pointer" onClick={() => {
+                                          if (att.type === 'youtube') window.open(att.url, '_blank');
+                                          else {
+                                              const w = window.open('about:blank');
+                                              w?.document.write(`<img src="${att.url}" style="max-width:100%"/>`);
+                                          }
+                                      }}>
+                                          {att.type === 'youtube' ? (
+                                              <div className="w-full h-full flex items-center justify-center bg-black">
+                                                  <Youtube className="w-8 h-8 text-red-500" />
+                                              </div>
+                                          ) : att.type === 'video' ? (
+                                              <video src={att.url} className="w-full h-full object-cover opacity-60" />
+                                          ) : (
+                                              <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                          )}
+                                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                              <span className="text-xs text-white font-bold bg-black/50 px-2 py-1 rounded backdrop-blur-sm">Ver</span>
+                                          </div>
+                                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1 truncate text-[9px] text-center text-white">
+                                              {att.name}
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      {/* Tags (Only for Notes) */}
+                      {viewingItem.type === 'note' && viewingItem.data.tags && viewingItem.data.tags.length > 0 && (
+                          <div className="mt-6 pt-6 border-t border-scout-700/50">
+                              <h4 className="text-xs font-bold text-scout-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                  <Tag className="w-3.5 h-3.5" /> Etiquetas
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                  {viewingItem.data.tags.map((tag: string, idx: number) => (
+                                      <span key={idx} className="bg-scout-700 text-scout-200 text-xs px-2.5 py-1 rounded-full border border-scout-600">
+                                          {tag}
+                                      </span>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
+                      <button 
+                          onClick={() => setViewingItem(null)} 
+                          className="px-6 py-2 bg-scout-700 hover:bg-scout-600 text-white font-bold rounded-lg text-sm transition-colors"
+                      >
+                          Cerrar
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

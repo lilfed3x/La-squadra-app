@@ -13,6 +13,7 @@ interface NoteListProps {
   allUsers: User[];
   onEditNote?: (note: Note) => void;
   onDeleteNote?: (noteId: string) => void;
+  onViewNote?: (note: Note) => void;
 }
 
 // Helper to extract YouTube ID (duplicated here to avoid prop drilling complex utils, or could be moved to shared file)
@@ -31,7 +32,8 @@ export const NoteList: React.FC<NoteListProps> = ({
   currentUser,
   allUsers,
   onEditNote,
-  onDeleteNote
+  onDeleteNote,
+  onViewNote
 }) => {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [filterAuthor, setFilterAuthor] = useState<string>('all');
@@ -109,18 +111,6 @@ export const NoteList: React.FC<NoteListProps> = ({
             <span className="text-[10px] uppercase font-bold">Video</span>
         </div>
       );
-  };
-
-  const handleAttachmentClick = (att: Attachment) => {
-      if (att.type === 'youtube') {
-          window.open(att.url, '_blank');
-      } else {
-          // Default behavior for images/videos (could open a modal light box in future)
-          const w = window.open('about:blank');
-          if (w) {
-              w.document.write(`<img src="${att.url}" style="max-width:100%; height:auto;">`);
-          }
-      }
   };
 
   return (
@@ -208,11 +198,15 @@ export const NoteList: React.FC<NoteListProps> = ({
             const isOwner = currentUser && note.scoutId === currentUser.id;
 
             return (
-              <div key={note.id} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-scout-600 transition-all group animate-slideIn relative">
+              <div 
+                key={note.id} 
+                onClick={() => onViewNote && onViewNote(note)}
+                className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-scout-gold/50 cursor-pointer transition-all group animate-slideIn relative"
+              >
                 
                 {/* Edit/Delete Actions */}
                 {isOwner && (
-                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                   <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => onEditNote && onEditNote(note)}
                         className="p-1.5 bg-scout-700 hover:bg-blue-500/20 text-scout-400 hover:text-blue-400 rounded-md transition-colors"
@@ -242,7 +236,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                   </div>
                 </div>
 
-                <p className="text-scout-100 text-sm leading-relaxed whitespace-pre-wrap mb-3">
+                <p className="text-scout-100 text-sm leading-relaxed whitespace-pre-wrap mb-3 line-clamp-3">
                   {note.content}
                 </p>
 
@@ -252,13 +246,12 @@ export const NoteList: React.FC<NoteListProps> = ({
                     {note.attachments.map(att => (
                       <div 
                         key={att.id} 
-                        onClick={() => handleAttachmentClick(att)}
-                        className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media cursor-pointer hover:border-scout-accent transition-colors"
+                        className="relative w-24 h-24 rounded-lg overflow-hidden border border-scout-600 bg-scout-900 group/media"
                       >
                         {renderAttachment(att)}
                         
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">{att.type === 'youtube' ? 'Abrir' : 'Ver'}</span>
+                          <span className="text-white text-xs font-medium">Ver Detalle</span>
                         </div>
                       </div>
                     ))}
