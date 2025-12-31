@@ -100,6 +100,7 @@ const App: React.FC = () => {
     };
   }, [searchContainerRef]);
 
+  // Initial Data Load
   useEffect(() => {
     const initApp = async () => {
       const currentUser = await AuthService.getCurrentSessionUser();
@@ -120,7 +121,6 @@ const App: React.FC = () => {
       setIsLoadingAuth(false);
     };
     initApp();
-    document.title = appSettings.appName;
 
     const unsubscribe = dataService.subscribe(() => {
       setPlayers(dataService.getPlayers());
@@ -130,7 +130,55 @@ const App: React.FC = () => {
     });
 
     return () => { unsubscribe(); };
-  }, [appSettings.appName]);
+  }, []);
+
+  // Dynamic PWA Metadata & Manifest Update
+  useEffect(() => {
+    // 1. Update Title
+    document.title = appSettings.appName;
+
+    // 2. Update PWA Icons & Manifest dynamically based on settings
+    if (appSettings.appLogoUrl) {
+      const logoUrl = appSettings.appLogoUrl;
+      
+      // Update Apple Touch Icon
+      const appleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+      if (appleIcon) appleIcon.href = logoUrl;
+
+      // Update Favicon (Create if missing)
+      let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = logoUrl;
+
+      // Update Manifest (Dynamic Blob)
+      const manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement;
+      if (manifestLink) {
+        const dynamicManifest = {
+          name: appSettings.appName,
+          short_name: appSettings.appName.length > 12 ? appSettings.appName.substring(0, 12) : appSettings.appName,
+          start_url: "/",
+          display: "standalone",
+          background_color: "#000000",
+          theme_color: "#000000",
+          orientation: "portrait",
+          description: "Plataforma profesional de scouting de fútbol.",
+          icons: [
+            { src: logoUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+            { src: logoUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+          ]
+        };
+        
+        // Create a blob URL for the manifest
+        const blob = new Blob([JSON.stringify(dynamicManifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        manifestLink.href = manifestURL;
+      }
+    }
+  }, [appSettings]);
 
   const handleCopySQL = () => {
     navigator.clipboard.writeText(dataService.getSetupSQL());
@@ -431,8 +479,8 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3 shrink-0">
              {/* Logo in Header for Mobile only */}
              {isMobile && (
-                 <div className="w-8 h-8 bg-scout-800 rounded-lg flex items-center justify-center border border-scout-700">
-                     <Shield className="w-5 h-5 text-scout-gold" />
+                 <div className="w-8 h-8 bg-scout-800 rounded-lg flex items-center justify-center border border-scout-700 overflow-hidden">
+                     {appSettings.appLogoUrl ? <img src={appSettings.appLogoUrl} alt="Logo" className="w-full h-full object-cover" /> : <Shield className="w-5 h-5 text-scout-gold" />}
                  </div>
              )}
              <h2 className="text-lg font-bold text-white truncate hidden md:block">
