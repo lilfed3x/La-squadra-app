@@ -71,10 +71,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
     try {
       const result = await AuthService.register(name, email, password);
       if (result.success) {
-        // Mensaje amigable y explicativo sobre la aprobación
         setSuccessMsg('¡Bienvenido a la comunidad! Tu cuenta ha sido registrada correctamente. Por motivos de seguridad, el acceso está pendiente de aprobación por un administrador. Te notificaremos cuando tu cuenta esté activa.');
-        // No cambiamos automáticamente a login para que puedan leer el mensaje con calma
-        // setTimeout(() => switchMode('login'), 5000); 
       } else {
         setError(result.error || 'Falló el registro');
       }
@@ -125,10 +122,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
                 </svg>
              )}
           </div>
-          <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 text-center leading-tight" style={{fontFamily: 'Inter, sans-serif'}}>
-             {appSettings.appName}
-          </h1>
-          <p className="text-scout-gold text-sm tracking-widest uppercase font-medium">Sport Business Suite</p>
+          
+          {/* Title Area: Image or Fallback Text */}
+          {appSettings.appTitleImageUrl ? (
+             <img src={appSettings.appTitleImageUrl} alt={appSettings.appName} className="h-16 w-auto object-contain mb-1" />
+          ) : (
+             <div className="text-center opacity-50">
+               {/* Empty state or placeholder if desired, currently hidden as requested */}
+             </div>
+          )}
         </div>
 
         {/* Alerts */}
@@ -190,7 +192,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
               </div>
             </div>
 
-            {/* Remember Credentials Checkbox */}
             <div className="flex items-center gap-2">
               <input 
                 type="checkbox" 

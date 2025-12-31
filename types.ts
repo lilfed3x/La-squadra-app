@@ -26,7 +26,8 @@ export interface User {
 
 export interface AppSettings {
   appName: string;
-  appLogoUrl: string; // If empty, use default SVG
+  appLogoUrl: string; // Small Icon / Favicon
+  appTitleImageUrl?: string; // New: Full Title/Banner Image for Login
   // System Preferences
   launchAtStartup: boolean;
   minimizeToTray: boolean;

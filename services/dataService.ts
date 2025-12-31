@@ -52,6 +52,7 @@ class DataService {
   private settings: AppSettings = {
     appName: 'LA SQUADRA',
     appLogoUrl: '',
+    appTitleImageUrl: '', // Default empty
     launchAtStartup: false,
     minimizeToTray: false
   };
@@ -72,7 +73,7 @@ class DataService {
   }
 
   public getSetupSQL(): string {
-    return `-- SQL SETUP (Simplificado) --
+    return `-- SQL SETUP (Actualizado) --
 CREATE TABLE IF NOT EXISTS public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -123,8 +124,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.app_config (
   id INTEGER PRIMARY KEY,
   app_name TEXT DEFAULT 'LA SQUADRA',
-  app_logo_url TEXT
+  app_logo_url TEXT,
+  app_title_image_url TEXT
 );
+-- Migración para añadir columna si no existe
+ALTER TABLE public.app_config ADD COLUMN IF NOT EXISTS app_title_image_url TEXT;
+
 INSERT INTO public.app_config (id, app_name) VALUES (1, 'LA SQUADRA') ON CONFLICT (id) DO NOTHING;
 
 -- Policies --
@@ -158,8 +163,6 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     // Suscripciones Realtime
     supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
-        // Si el evento viene de mi propia acción (insert/delete), ya lo actualicé localmente.
-        // Pero para sincronizar con otros, hacemos fetch.
         this.fetchPlayers();
       })
       .subscribe();
@@ -258,7 +261,12 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     try {
       const { data } = await supabase.from('app_config').select('*').eq('id', 1).maybeSingle();
       if (data) {
-          this.settings = { ...this.settings, appName: data.app_name, appLogoUrl: data.app_logo_url };
+          this.settings = { 
+              ...this.settings, 
+              appName: data.app_name, 
+              appLogoUrl: data.app_logo_url,
+              appTitleImageUrl: data.app_title_image_url 
+          };
           this.notifyListeners();
       }
     } catch (e) {}
@@ -272,7 +280,6 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
   // --- WRITE OPERATIONS (Optimistic) ---
 
   public async addPlayer(player: Player) {
-    // 1. Crear objeto DB
     const dbPlayer = {
       name: player.name,
       team: player.team,
@@ -291,22 +298,17 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       nutrition: player.nutrition
     };
     
-    // 2. ACTUALIZACIÓN OPTIMISTA: Agregar localmente antes de que la DB responda
-    // Asignamos un ID temporal si es necesario, aunque en refresh se sobrescribirá
     const tempPlayer = { ...player, id: player.id.startsWith('temp') ? player.id : 'temp-' + Date.now() };
     this.players = [tempPlayer, ...this.players]; 
-    this.notifyListeners(); // Actualizar UI inmediatamente
+    this.notifyListeners(); 
 
-    // 3. Insertar en DB
     const { data, error } = await supabase.from('players').insert([dbPlayer]).select();
     
     if (error) {
         alert("Error al guardar: " + error.message);
-        // Revertir si falla
         this.players = this.players.filter(p => p.id !== tempPlayer.id);
         this.notifyListeners();
     } else if (data && data[0]) {
-        // Reemplazar el temporal con el real de la DB
         const realPlayer = mapPlayerFromDB(data[0]);
         this.players = this.players.map(p => p.id === tempPlayer.id ? realPlayer : p);
         this.notifyListeners();
@@ -332,29 +334,26 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       nutrition: player.nutrition
     };
     
-    // Optimistic Update
     this.players = this.players.map(p => p.id === player.id ? player : p);
     this.notifyListeners();
 
     const { error } = await supabase.from('players').update(dbPlayer).eq('id', player.id);
     if (error) {
         console.error(error);
-        this.fetchPlayers(); // Revertir
+        this.fetchPlayers(); 
     }
   }
 
   public async deletePlayer(id: string) {
-    // 1. Optimistic Delete
     const originalList = [...this.players];
     this.players = this.players.filter(p => p.id !== id);
     this.notifyListeners();
 
-    // 2. DB Delete
     const { error } = await supabase.from('players').delete().eq('id', id);
     
     if (error) {
         alert("Error al eliminar: " + error.message);
-        this.players = originalList; // Revertir
+        this.players = originalList;
         this.notifyListeners();
     }
   }
@@ -377,7 +376,6 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       is_edited: false
     };
 
-    // Optimistic
     this.notes = [note, ...this.notes];
     this.notifyListeners();
 
@@ -422,7 +420,8 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
     await supabase.from('app_config').upsert({
        id: 1,
        app_name: newSettings.appName,
-       app_logo_url: newSettings.appLogoUrl
+       app_logo_url: newSettings.appLogoUrl,
+       app_title_image_url: newSettings.appTitleImageUrl
     });
   }
 
@@ -430,8 +429,6 @@ CREATE PUBLICATION supabase_realtime FOR TABLE public.players, public.notes, pub
       this.users = this.users.filter(u => u.id !== userId);
       this.notifyListeners();
       await supabase.from('profiles').delete().eq('id', userId);
-      // Nota: auth.users no se puede borrar desde el cliente sin una Edge Function de admin,
-      // pero borrar el perfil bloquea el acceso en la app.
   }
 }
 

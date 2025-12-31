@@ -21,7 +21,7 @@ import { nanoid } from 'nanoid';
 type ViewMode = 'dashboard' | 'database' | 'profile_view';
 
 const App: React.FC = () => {
-  // DEV MODE: Usamos un UUID válido para evitar errores en Postgres
+  // DEV MODE: Usuario por defecto cargado inmediatamente
   const [user, setUser] = useState<User | null>({
     id: '00000000-0000-0000-0000-000000000001', 
     name: 'Desarrollador (Admin)',
@@ -29,10 +29,12 @@ const App: React.FC = () => {
     role: 'admin',
     passwordHash: '',
     salt: '',
-    approved: true
+    approved: true,
+    avatar: 'https://cdn-icons-png.flaticon.com/512/4140/4140048.png'
   });
 
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // NOTA: Se ha eliminado isLoadingAuth para evitar bloqueos en la pantalla de carga.
+  
   const [appSettings, setAppSettings] = useState<AppSettings>(dataService.getSettings());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -131,40 +133,32 @@ const App: React.FC = () => {
     };
   }, [searchContainerRef]);
 
-  // Initial Data Load with Safety Timeout
+  // Initial Data Load
   useEffect(() => {
     const initApp = async () => {
-      try {
-        const currentUser = await AuthService.getCurrentSessionUser();
-        if (currentUser) {
-            setUser(currentUser);
+        // Intentamos cargar datos en segundo plano sin bloquear la UI
+        try {
+            setPlayers(dataService.getPlayers());
+            setNotes(dataService.getNotes());
+            setAppSettings(dataService.getSettings());
+            setDbError(dataService.dbError);
+            
+            const initialPlayers = dataService.getPlayers();
+            if (initialPlayers.length > 0 && window.innerWidth >= 768) {
+               setActivePlayerId(initialPlayers[0].id);
+            }
+            
+            // Intentar sesión real silenciosamente
+            const currentUser = await AuthService.getCurrentSessionUser();
+            if (currentUser) {
+                setUser(currentUser);
+            }
+        } catch (e) {
+            console.error(e);
         }
-        
-        setPlayers(dataService.getPlayers());
-        setNotes(dataService.getNotes());
-        setAppSettings(dataService.getSettings());
-        setDbError(dataService.dbError);
-        
-        const initialPlayers = dataService.getPlayers();
-        if (initialPlayers.length > 0 && window.innerWidth >= 768) {
-           setActivePlayerId(initialPlayers[0].id);
-        }
-      } catch (error) {
-        console.error("Initialization error:", error);
-      } finally {
-        setIsLoadingAuth(false);
-      }
     };
 
     initApp();
-
-    // Safety timeout: If initApp hangs (e.g. auth network issue), force load after 3 seconds
-    const safetyTimer = setTimeout(() => {
-        setIsLoadingAuth(prev => {
-            if (prev) console.warn("Forcing app load due to timeout");
-            return false;
-        });
-    }, 3000);
 
     const unsubscribe = dataService.subscribe(() => {
       setPlayers(dataService.getPlayers());
@@ -175,7 +169,6 @@ const App: React.FC = () => {
 
     return () => { 
         unsubscribe(); 
-        clearTimeout(safetyTimer);
     };
   }, []);
 
@@ -272,7 +265,6 @@ const App: React.FC = () => {
     } else {
       const newPlayer: Player = { id: `temp-p-${nanoid()}`, ...playerData as any };
       dataService.addPlayer(newPlayer); 
-      // If mobile, go to list to see new player. If desktop, select it.
       if (!isMobile) setActivePlayerId(newPlayer.id);
     }
     setEditingPlayer(null);
@@ -314,7 +306,6 @@ const App: React.FC = () => {
       setIsSelectionMode(!isSelectionMode);
       setSelectedPlayers(new Set());
       if (!isSelectionMode && isMobile) {
-          // Clear active selection to show list with checkboxes
           setActivePlayerId('');
       }
   };
@@ -374,22 +365,19 @@ const App: React.FC = () => {
     );
   }, [players, playerFilter]);
 
-  // Search Suggestions (Autocomplete)
   const searchSuggestions = useMemo(() => {
       if (!playerFilter.trim()) return [];
-      // Use filteredPlayers as source but limit results for dropdown
       return filteredPlayers.slice(0, 5);
   }, [filteredPlayers, playerFilter]);
 
   const handleSearchResultClick = (playerId: string) => {
       setActivePlayerId(playerId);
       setViewMode('database');
-      setPlayerFilter(''); // Clear search to show full context, or keep it if preferred
+      setPlayerFilter('');
       setShowSearchSuggestions(false);
   };
 
   const groupedPlayers = useMemo(() => {
-    // If filtering, we still show the filtered list structure
     const groups: Record<string, Player[]> = {};
     filteredPlayers.forEach(p => {
       const team = p.team || 'Agentes Libres';
@@ -402,37 +390,22 @@ const App: React.FC = () => {
   const sortedTeams = Object.keys(groupedPlayers).sort();
   const toggleTeam = (team: string) => setExpandedTeams(prev => ({ ...prev, [team]: !prev[team] }));
 
-  // Mobile Navigation Helpers
   const handleNavClick = (mode: ViewMode) => {
       setViewMode(mode);
-      setIsSelectionMode(false); // Exit selection mode on nav change
-      // Reset player selection when going to database in mobile to show list
+      setIsSelectionMode(false);
       if (mode === 'database' && isMobile) {
           setActivePlayerId('');
       }
   };
 
   const handlePlayerSelect = (id: string) => {
-      if (isSelectionMode) return; // Prevent selection in selection mode (handled by toggle)
+      if (isSelectionMode) return;
       setActivePlayerId(id);
-      // In mobile, stay in 'database' view mode but the renderer handles showing the detail component
-      // because activePlayerId is set.
   };
 
   const handleBackToList = () => {
       setActivePlayerId('');
   };
-
-  if (isLoadingAuth) {
-    return (
-      <div className="h-screen bg-[#0f172a] flex items-center justify-center">
-        <div className="flex flex-col items-center">
-            <Activity className="w-10 h-10 text-scout-gold animate-spin mb-4" />
-            <p className="text-scout-400 text-sm animate-pulse">Cargando sistema...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Database Error Screen (unchanged logic)
   if (dbError === "TABLAS_FALTANTES") {
@@ -451,13 +424,11 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-scout-900 text-scout-100 font-sans overflow-hidden">
       
-      {/* Include PWA Update Prompt */}
       <UpdatePrompt />
 
-      {/* DESKTOP SIDEBAR (Hidden on Mobile) */}
+      {/* DESKTOP SIDEBAR */}
       {!isMobile && (
         <div className="w-64 bg-scout-900 border-r border-scout-800 flex flex-col flex-shrink-0 relative">
-          {/* Logo */}
           <div className="p-6 flex flex-col items-center gap-3 mb-2 cursor-pointer text-center" onClick={() => handleNavClick('dashboard')}>
              <div className="w-16 h-16 bg-gradient-to-br from-scout-900 to-black rounded-xl flex items-center justify-center shadow-lg border border-scout-gold/30 overflow-hidden">
                {appSettings.appLogoUrl ? <img src={appSettings.appLogoUrl} alt="App Logo" className="w-full h-full object-cover" /> : <Shield className="w-8 h-8 text-scout-gold"/>}
@@ -465,7 +436,6 @@ const App: React.FC = () => {
              <h1 className="font-black text-xl tracking-widest text-white uppercase">{appSettings.appName}</h1>
           </div>
 
-          {/* Navigation */}
           <div className="px-4 space-y-2 mt-4 flex-1">
              <button onClick={() => handleNavClick('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${viewMode === 'dashboard' ? 'bg-scout-800 text-scout-gold border border-scout-700' : 'text-scout-400 hover:text-white hover:bg-scout-800/50'}`}>
                <LayoutDashboard className="w-5 h-5 shrink-0" /> <span>Panel</span>
@@ -474,7 +444,6 @@ const App: React.FC = () => {
                  <Users className="w-5 h-5 shrink-0" /> <span>Base de Datos</span>
              </button>
              
-             {/* Desktop Install Button */}
              {showInstallButton && (
                 <button onClick={handleInstallClick} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold bg-gradient-to-r from-scout-gold to-yellow-600 text-scout-900 mt-4 animate-pulse">
                     <Smartphone className="w-5 h-5 shrink-0" /> <span>Instalar App</span>
@@ -482,7 +451,6 @@ const App: React.FC = () => {
              )}
           </div>
           
-          {/* User Footer */}
           <div className="mt-auto border-t border-scout-800 p-4 relative">
              {showUserMenu && (
                <div className="absolute bottom-full left-4 right-4 mb-2 bg-scout-800 border border-scout-700 rounded-xl shadow-xl overflow-hidden animate-fadeIn z-50">
@@ -506,10 +474,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b1120] relative w-full pb-16 md:pb-0">
-        
-        {/* HEADER */}
         <header className="h-16 border-b border-scout-800 bg-scout-900/50 backdrop-blur-sm flex items-center px-4 md:px-6 justify-between shrink-0 z-30 gap-4">
           <div className="flex items-center gap-3 shrink-0">
              {isMobile && (
@@ -523,8 +489,6 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex-1 flex justify-end items-center gap-2 max-w-xl">
-             
-             {/* SEARCH BAR */}
              <div className="relative w-full max-w-md" ref={searchContainerRef}>
                 <div className="relative">
                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-scout-500" />
@@ -548,7 +512,6 @@ const App: React.FC = () => {
                    )}
                 </div>
 
-                {/* SEARCH SUGGESTIONS */}
                 {showSearchSuggestions && searchSuggestions.length > 0 && (
                    <div className="absolute top-full left-0 right-0 mt-2 bg-scout-800 border border-scout-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
                       <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
@@ -580,7 +543,6 @@ const App: React.FC = () => {
                 )}
              </div>
 
-             {/* Mobile Settings Shortcut */}
              {isMobile && user.role === 'admin' && (
                  <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 text-scout-400 hover:text-white shrink-0">
                      <Settings className="w-5 h-5" />
@@ -699,7 +661,6 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* MOBILE FLOATING INSTALL BUTTON */}
       {showInstallButton && isMobile && (
           <button 
             onClick={handleInstallClick}
@@ -710,7 +671,6 @@ const App: React.FC = () => {
           </button>
       )}
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
       {isMobile && (
           <div className="fixed bottom-0 left-0 right-0 h-16 bg-scout-900 border-t border-scout-800 flex justify-around items-center z-50 shadow-2xl safe-area-bottom">
               <button onClick={() => handleNavClick('dashboard')} className={`flex flex-col items-center justify-center w-full h-full ${viewMode === 'dashboard' ? 'text-scout-gold' : 'text-scout-500'}`}>

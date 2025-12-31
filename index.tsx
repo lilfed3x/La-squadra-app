@@ -2,11 +2,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-// Importación explícita para registrar el SW inmediatamente
-import { registerSW } from 'virtual:pwa-register';
 
-// Registrar Service Worker para capacidades PWA/Offline
-registerSW({ immediate: true });
+// LIMPIEZA DE CACHÉ PWA:
+// Esto asegura que si una versión anterior (con pantalla azul) quedó guardada, se elimine.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for(let registration of registrations) {
+      registration.unregister();
+      console.log('Service Worker desregistrado para forzar actualización.');
+    }
+  });
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
