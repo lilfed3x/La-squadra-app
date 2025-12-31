@@ -6,7 +6,7 @@ import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
 import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag } from 'lucide-react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
 import { nanoid } from 'nanoid';
@@ -238,6 +238,8 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
         status: 'Activo',
         attachments: []
     });
+    const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
+    const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({}); // Format: "YYYY-Month"
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Grouping Logic: Year -> Month -> Reports
@@ -255,6 +257,28 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
 
     // Sort Years Descending
     const sortedYears = Object.keys(groupedReports).map(Number).sort((a, b) => b - a);
+
+    // Initial Expansion: Expand the most recent year
+    useEffect(() => {
+        if (sortedYears.length > 0 && Object.keys(expandedYears).length === 0) {
+            setExpandedYears({ [sortedYears[0]]: true });
+            
+            // Auto expand months of the first year too for better UX
+            const firstYear = sortedYears[0];
+            const months = Object.keys(groupedReports[firstYear] || {});
+            const monthState: Record<string, boolean> = {};
+            months.forEach(m => monthState[`${firstYear}-${m}`] = true);
+            setExpandedMonths(prev => ({...prev, ...monthState}));
+        }
+    }, [sortedYears.length]);
+
+    const toggleYear = (year: number) => {
+        setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
+    };
+
+    const toggleMonth = (key: string) => {
+        setExpandedMonths(prev => ({ ...prev, [key]: !prev[key] }));
+    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -292,11 +316,19 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
             doctorName: 'Dr. Equipo' // Mock
         };
 
-        const updatedHistory = [report, ...(player.physical?.medicalHistory || [])];
+        const currentPhysical = player.physical || {
+            fatigueLevel: 0,
+            injuryRisk: 'Bajo',
+            recoveryStatus: 'Apto',
+            fitnessNotes: '',
+            medicalHistory: []
+        };
+
+        const updatedHistory = [report, ...(currentPhysical.medicalHistory || [])];
         const updatedPlayer = {
             ...player,
             physical: {
-                ...player.physical!,
+                ...currentPhysical,
                 medicalHistory: updatedHistory
             }
         };
@@ -306,10 +338,26 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
         setNewReport({ date: new Date().toISOString().split('T')[0], title: '', description: '', severity: 'Baja', status: 'Activo', attachments: [] });
     };
 
-    const handleDeleteReport = (id: string) => {
+    const handleDeleteReport = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Stop propagation to prevent toggling accordion
         if (!confirm("¿Eliminar este informe médico?")) return;
-        const updatedHistory = (player.physical?.medicalHistory || []).filter(r => r.id !== id);
-        const updatedPlayer = { ...player, physical: { ...player.physical!, medicalHistory: updatedHistory } };
+        
+        const currentPhysical = player.physical || {
+            fatigueLevel: 0,
+            injuryRisk: 'Bajo',
+            recoveryStatus: 'Apto',
+            fitnessNotes: '',
+            medicalHistory: []
+        };
+
+        const updatedHistory = (currentPhysical.medicalHistory || []).filter(r => r.id !== id);
+        const updatedPlayer = { 
+            ...player, 
+            physical: { 
+                ...currentPhysical, 
+                medicalHistory: updatedHistory 
+            } 
+        };
         onUpdate(updatedPlayer);
     };
 
@@ -394,8 +442,8 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
                 </div>
             )}
 
-            {/* CASCADE VIEW */}
-            <div className="space-y-3">
+            {/* CASCADE VIEW WITH SCROLL */}
+            <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                 {sortedYears.length === 0 ? (
                     <div className="text-center py-8 text-scout-500 border border-dashed border-scout-700 rounded-lg">
                         <ActivityIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -404,50 +452,76 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
                 ) : (
                     sortedYears.map(year => (
                         <div key={year} className="border border-scout-700 rounded-xl overflow-hidden bg-scout-800/30">
-                            {/* Year Header */}
-                            <div className="bg-scout-800 px-4 py-2 flex items-center gap-2 border-b border-scout-700">
-                                <Calendar className="w-4 h-4 text-scout-gold" />
-                                <span className="font-bold text-white text-sm">{year}</span>
+                            {/* Year Header (Clickable) */}
+                            <div 
+                                onClick={() => toggleYear(year)}
+                                className="bg-scout-800 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-scout-700/50 transition-colors border-b border-scout-700 select-none"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-scout-gold" />
+                                    <span className="font-bold text-white text-sm">{year}</span>
+                                </div>
+                                {expandedYears[year] ? <ChevronDown className="w-4 h-4 text-scout-400" /> : <ChevronRight className="w-4 h-4 text-scout-400" />}
                             </div>
                             
-                            <div className="p-2 space-y-2">
-                                {Object.entries(groupedReports[year] || {}).map(([month, reports]) => (
-                                    <div key={month} className="ml-2 pl-4 border-l-2 border-scout-700">
-                                        <h5 className="text-xs font-bold text-scout-400 uppercase mb-2 mt-1">{month}</h5>
-                                        <div className="space-y-2">
-                                            {(reports as MedicalReport[]).map(report => (
-                                                <div key={report.id} className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className={`w-2 h-2 rounded-full ${report.status === 'Activo' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></span>
-                                                                <h6 className="text-sm font-bold text-white">{report.title}</h6>
-                                                            </div>
-                                                            <p className="text-xs text-scout-300 leading-relaxed mb-2">{report.description}</p>
-                                                            <div className="flex items-center gap-3 text-[10px] text-scout-500">
-                                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(report.date).toLocaleDateString()}</span>
-                                                                <span className={`px-1.5 py-0.5 rounded border ${report.severity === 'Alta' || report.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>{report.severity}</span>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => handleDeleteReport(report.id)} className="text-scout-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    {/* Attachments */}
-                                                    {report.attachments && report.attachments.length > 0 && (
-                                                        <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto">
-                                                            {report.attachments.map(att => (
-                                                                <AttachmentPreview key={att.id} attachment={att} />
-                                                            ))}
-                                                        </div>
-                                                    )}
+                            {/* Year Content */}
+                            {expandedYears[year] && (
+                                <div className="p-2 space-y-2 animate-fadeIn">
+                                    {Object.entries(groupedReports[year] || {}).map(([month, reports]) => {
+                                        const monthKey = `${year}-${month}`;
+                                        return (
+                                            <div key={month} className="border border-scout-700/50 rounded-lg overflow-hidden bg-scout-900/20">
+                                                {/* Month Header (Clickable) */}
+                                                <div 
+                                                    onClick={() => toggleMonth(monthKey)}
+                                                    className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-scout-800 transition-colors border-b border-scout-700/30"
+                                                >
+                                                    <h5 className="text-xs font-bold text-scout-400 uppercase">{month}</h5>
+                                                    {expandedMonths[monthKey] ? <ChevronDown className="w-3 h-3 text-scout-500" /> : <ChevronRight className="w-3 h-3 text-scout-500" />}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+
+                                                {/* Month Content */}
+                                                {expandedMonths[monthKey] && (
+                                                    <div className="p-2 space-y-2 animate-fadeIn">
+                                                        {(reports as MedicalReport[]).map(report => (
+                                                            <div key={report.id} className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <span className={`w-2 h-2 rounded-full ${report.status === 'Activo' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></span>
+                                                                            <h6 className="text-sm font-bold text-white">{report.title}</h6>
+                                                                        </div>
+                                                                        <p className="text-xs text-scout-300 leading-relaxed mb-2">{report.description}</p>
+                                                                        <div className="flex items-center gap-3 text-[10px] text-scout-500">
+                                                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(report.date).toLocaleDateString()}</span>
+                                                                            <span className={`px-1.5 py-0.5 rounded border ${report.severity === 'Alta' || report.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>{report.severity}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={(e) => handleDeleteReport(report.id, e)} 
+                                                                        className="text-scout-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                                
+                                                                {/* Attachments */}
+                                                                {report.attachments && report.attachments.length > 0 && (
+                                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto">
+                                                                        {report.attachments.map(att => (
+                                                                            <AttachmentPreview key={att.id} attachment={att} />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
@@ -471,41 +545,9 @@ const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerU
              )}
          </div>
 
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* NEW: Performance Metrics Sliders (From Screenshot Request) */}
-            <div className="lg:col-span-1 bg-scout-800 p-6 rounded-xl border border-scout-700 shadow-lg h-fit">
-                <div className="flex justify-between items-end mb-6">
-                    <h3 className="text-xs font-bold text-scout-400 uppercase tracking-wider">Métricas de Rendimiento</h3>
-                    <div className="flex items-center gap-2 bg-scout-900 px-3 py-1 rounded border border-emerald-500/30">
-                        <span className="text-xs text-scout-400">Valoración</span>
-                        <span className="text-lg font-bold text-emerald-400">{player.scoutRating}</span>
-                    </div>
-                </div>
-                
-                <div className="space-y-5">
-                    {(Object.entries(player.stats) as [string, number][]).map(([key, val]) => {
-                        const value = val as number;
-                        return (
-                            <div key={key} className="group">
-                                <div className="flex justify-between mb-1.5">
-                                    <span className="text-sm font-medium text-scout-200 capitalize">{STAT_LABELS[key] || key}</span>
-                                    <span className="text-sm font-bold text-white">{value}</span>
-                                </div>
-                                <div className="w-full h-2 bg-scout-900 rounded-full overflow-hidden relative border border-scout-700/50">
-                                    <div 
-                                        className={`h-full rounded-full transition-all duration-1000 ease-out relative ${value > 85 ? 'bg-emerald-500' : value > 70 ? 'bg-scout-gold' : value > 50 ? 'bg-blue-500' : 'bg-scout-500'}`} 
-                                        style={{ width: `${value}%` }}
-                                    >
-                                        {/* Slider thumb visual */}
-                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg shadow-black/50 transform scale-0 group-hover:scale-125 transition-transform"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
+            {/* REMOVED: Performance Metrics Sliders (Moved to General Tab as requested) */}
 
             {/* Metrics & Medical History */}
             <div className="lg:col-span-2 space-y-6">
@@ -692,6 +734,16 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       setIsNoteEditorOpen(true);
   };
 
+  // Radar Data
+  const radarData = [
+      { subject: 'Ritmo', A: player.stats.pace, fullMark: 100 },
+      { subject: 'Tiro', A: player.stats.shooting, fullMark: 100 },
+      { subject: 'Pase', A: player.stats.passing, fullMark: 100 },
+      { subject: 'Regate', A: player.stats.dribbling, fullMark: 100 },
+      { subject: 'Defensa', A: player.stats.defending, fullMark: 100 },
+      { subject: 'Físico', A: player.stats.physical, fullMark: 100 },
+  ];
+
   return (
     <div className="h-full flex flex-col bg-[#0b1120] relative overflow-hidden">
       
@@ -801,10 +853,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-20 md:pb-6">
         
         {activeTab === 'overview' && (
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fadeIn">
               
               {/* Left Col: Pitch & Basic Stats */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                  <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg h-80 relative group">
                     <div className="absolute inset-0 bg-gradient-to-t from-scout-900/80 to-transparent z-10 pointer-events-none"></div>
                     <div className="absolute bottom-3 left-3 z-20">
@@ -816,6 +868,22 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                     </div>
                     {/* Pitch Visualizer */}
                     <TacticalPitch position={player.position} />
+                 </div>
+
+                 {/* NEW: Radar Chart */}
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4 shadow-lg flex flex-col justify-center items-center relative">
+                    <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider mb-2 self-start">Radar de Atributos</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                <PolarGrid stroke="#334155" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar name={player.name} dataKey="A" stroke="#10b981" strokeWidth={2} fill="#10b981" fillOpacity={0.3} />
+                                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }} />
+                            </RadarChart>
+                        </ResponsiveContainer>
+                    </div>
                  </div>
 
                  {/* Basic Stats Grid */}
@@ -851,33 +919,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
               </div>
 
               {/* Middle/Right Col: Detailed Views */}
-              <div className="lg:col-span-2 space-y-6">
-                  {/* Latest Note Teaser */}
-                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-5 rounded-xl border border-scout-700 shadow-md">
-                      <div className="flex justify-between items-start mb-3">
-                         <h3 className="font-bold text-white flex items-center gap-2">
-                            <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
-                         </h3>
-                         <button onClick={() => setActiveTab('notes')} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
-                            Ver todas <ArrowRight className="w-3 h-3" />
-                         </button>
-                      </div>
-                      {notes.length > 0 ? (
-                         <div className="bg-black/20 p-3 rounded-lg border border-white/5">
-                            <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
-                            <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
-                               <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
-                               <span>•</span>
-                               <span className="uppercase font-bold text-scout-400">{notes[0].category}</span>
-                            </div>
-                         </div>
-                      ) : (
-                         <p className="text-sm text-scout-500 italic">No hay notas registradas aún.</p>
-                      )}
-                  </div>
-
+              <div className="lg:col-span-2 space-y-4">
+                  
                   {/* Physical & Contract Teasers (Clickable to switch tabs OR edit) */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                            <ActivityIcon className="w-5 h-5 text-blue-400" />
@@ -910,6 +955,30 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                         <div className="text-2xl font-bold text-white mb-1">{player.contract?.contractExpiration ? new Date(player.contract.contractExpiration).getFullYear() : 'N/A'}</div>
                         <p className="text-xs text-scout-500">Fin de Contrato</p>
                      </div>
+                  </div>
+
+                  {/* Latest Note Teaser */}
+                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-5 rounded-xl border border-scout-700 shadow-md">
+                      <div className="flex justify-between items-start mb-3">
+                         <h3 className="font-bold text-white flex items-center gap-2">
+                            <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
+                         </h3>
+                         <button onClick={() => setActiveTab('notes')} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
+                            Ver todas <ArrowRight className="w-3 h-3" />
+                         </button>
+                      </div>
+                      {notes.length > 0 ? (
+                         <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                            <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
+                            <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
+                               <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
+                               <span>•</span>
+                               <span className="uppercase font-bold text-scout-400">{notes[0].category}</span>
+                            </div>
+                         </div>
+                      ) : (
+                         <p className="text-sm text-scout-500 italic">No hay notas registradas aún.</p>
+                      )}
                   </div>
 
                   {/* AI Quick Analysis (If available) */}
