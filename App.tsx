@@ -220,7 +220,13 @@ const App: React.FC = () => {
 
   const handleDeleteNote = (noteId: string) => {
     if (!user) return;
-    dataService.deleteNote(noteId); 
+    setConfirmModal({
+        isOpen: true,
+        title: 'Eliminar Nota',
+        message: '¿Estás seguro de que deseas eliminar esta nota? Esta acción no se puede deshacer.',
+        isDestructive: true,
+        onConfirm: () => dataService.deleteNote(noteId)
+    });
   };
 
   const handleSavePlayer = (playerData: Partial<Player>) => {

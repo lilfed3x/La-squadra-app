@@ -9,6 +9,7 @@ import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft,
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
+import { ConfirmModal } from './ConfirmModal';
 import { nanoid } from 'nanoid';
 
 interface PlayerProfileProps {
@@ -240,6 +241,7 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
     });
     const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
     const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({}); // Format: "YYYY-Month"
+    const [reportToDelete, setReportToDelete] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Grouping Logic: Year -> Month -> Reports
@@ -340,7 +342,11 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
 
     const handleDeleteReport = (id: string, e: React.MouseEvent) => {
         e.stopPropagation(); // Stop propagation to prevent toggling accordion
-        if (!confirm("¿Eliminar este informe médico?")) return;
+        setReportToDelete(id);
+    };
+
+    const executeDeleteReport = () => {
+        if (!reportToDelete) return;
         
         const currentPhysical = player.physical || {
             fatigueLevel: 0,
@@ -350,7 +356,7 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
             medicalHistory: []
         };
 
-        const updatedHistory = (currentPhysical.medicalHistory || []).filter(r => r.id !== id);
+        const updatedHistory = (currentPhysical.medicalHistory || []).filter(r => r.id !== reportToDelete);
         const updatedPlayer = { 
             ...player, 
             physical: { 
@@ -359,6 +365,7 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
             } 
         };
         onUpdate(updatedPlayer);
+        setReportToDelete(null);
     };
 
     return (
@@ -526,6 +533,15 @@ const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Playe
                     ))
                 )}
             </div>
+
+            <ConfirmModal 
+                isOpen={!!reportToDelete}
+                onClose={() => setReportToDelete(null)}
+                onConfirm={executeDeleteReport}
+                title="Eliminar Informe Médico"
+                message="¿Estás seguro de eliminar este registro del historial clínico? Esta acción no se puede deshacer."
+                isDestructive={true}
+            />
         </div>
     );
 };
