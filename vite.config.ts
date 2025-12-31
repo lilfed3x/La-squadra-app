@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
-        manifestFilename: 'manifest.json', // Standardize filename
+        manifestFilename: 'manifest.json',
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
           type: 'module'
         },
         manifest: {
-          id: 'lasquadra-app',
+          id: '/',
           name: 'LA SQUADRA SCOUTING',
           short_name: 'La Squadra',
           description: 'Plataforma profesional de scouting de fútbol.',
