@@ -1,29 +1,15 @@
 
 import React from 'react';
 import { RefreshCw, X, Zap } from 'lucide-react';
-
-// Use dynamic-style check or standard import with error handling
-// In some preview environments, virtual modules might fail to resolve
-let useRegisterSW: any;
-try {
-  // @ts-ignore
-  const pwaModule = await import('virtual:pwa-register/react');
-  useRegisterSW = pwaModule.useRegisterSW;
-} catch (e) {
-  // Fallback for environments without PWA support
-  useRegisterSW = () => ({
-    needRefresh: [false, () => {}],
-    offlineReady: [false, () => {}],
-    updateServiceWorker: async () => {},
-  });
-}
+// Use static import to avoid "Top-level await" build error
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 export const UpdatePrompt: React.FC = () => {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r: ServiceWorkerRegistration) {
+    onRegistered(r: ServiceWorkerRegistration | undefined) {
       if (r) {
         setInterval(() => {
           r.update();

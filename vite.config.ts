@@ -64,6 +64,7 @@ export default defineConfig(({ mode }) => {
       open: true
     },
     build: {
+      target: 'esnext', // Allows modern syntax if needed, though TLA removed
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
