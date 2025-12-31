@@ -104,12 +104,24 @@ export interface NutritionalReport {
   supplements: string[];
 }
 
+export interface MedicalReport {
+  id: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  description: string;
+  severity: 'Baja' | 'Media' | 'Alta' | 'Crítica';
+  status: 'Activo' | 'Recuperado' | 'En Tratamiento';
+  doctorName?: string;
+  attachments: Attachment[];
+}
+
 export interface PhysicalProfile {
   fatigueLevel: number; // 0-100
   injuryRisk: 'Bajo' | 'Medio' | 'Alto';
   recoveryStatus: string;
   lastInjury?: string;
   fitnessNotes: string;
+  medicalHistory?: MedicalReport[]; // New field for cascade history
 }
 
 export interface Player {

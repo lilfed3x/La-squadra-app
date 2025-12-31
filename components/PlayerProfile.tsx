@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Attachment, Note, NoteCategory, Player, User } from '../types';
+import { Attachment, Note, NoteCategory, Player, User, MedicalReport } from '../types';
 import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X, ChevronDown, ChevronRight, Plus, Paperclip, Image as ImageIcon, Save, MapPin, Footprints, Flag } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
+import { nanoid } from 'nanoid';
 
 interface PlayerProfileProps {
   player: Player;
@@ -37,6 +38,53 @@ const getYoutubeId = (url: string) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
+};
+
+// --- Helper for Attachments Rendering ---
+const AttachmentPreview: React.FC<{ attachment: Attachment, onRemove?: () => void }> = ({ attachment, onRemove }) => {
+    const isYoutube = attachment.type === 'youtube';
+    
+    return (
+        <div className="relative group w-20 h-20 rounded-md overflow-hidden bg-scout-900 border border-scout-700 shrink-0">
+            {isYoutube ? (
+                <div className="w-full h-full relative flex items-center justify-center bg-black">
+                    <Youtube className="w-6 h-6 text-red-500" />
+                </div>
+            ) : attachment.type === 'video' ? (
+                 <div className="w-full h-full relative flex items-center justify-center bg-black">
+                    <video src={attachment.url} className="w-full h-full object-cover opacity-50" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                            <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-white border-b-4 border-b-transparent ml-0.5"></div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <img src={attachment.url} alt={attachment.name} className="w-full h-full object-cover" />
+            )}
+            
+            {onRemove && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                >
+                    <X className="w-3 h-3" />
+                </button>
+            )}
+            
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-0.5">
+                <p className="text-[8px] text-white truncate text-center px-1">{attachment.name}</p>
+            </div>
+            
+            <div className="absolute inset-0 cursor-pointer" onClick={() => {
+                if (isYoutube) window.open(attachment.url, '_blank');
+                else {
+                    const w = window.open('about:blank');
+                    w?.document.write(`<img src="${attachment.url}" style="max-width:100%"/>`);
+                }
+            }}></div>
+        </div>
+    );
 };
 
 // --- Extracted Components with FULL VISUALIZATION ---
@@ -178,93 +226,337 @@ const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ p
   );
 };
 
-const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
-   const stats = [
-      { subject: 'Velocidad', A: player.stats.pace, fullMark: 100 },
-      { subject: 'Físico', A: player.stats.physical, fullMark: 100 },
-      { subject: 'Resistencia', A: 100 - (player.physical?.fatigueLevel || 0), fullMark: 100 },
-      { subject: 'Potencia', A: Math.round((player.stats.physical + player.stats.shooting)/2), fullMark: 100 },
-      { subject: 'Agilidad', A: player.stats.dribbling, fullMark: 100 },
-   ];
+// --- Medical Report System ---
 
+const MedicalHistorySection: React.FC<{ player: Player; onUpdate: (player: Player) => void }> = ({ player, onUpdate }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [newReport, setNewReport] = useState<Partial<MedicalReport>>({
+        date: new Date().toISOString().split('T')[0],
+        title: '',
+        description: '',
+        severity: 'Baja',
+        status: 'Activo',
+        attachments: []
+    });
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Grouping Logic: Year -> Month -> Reports
+    const groupedReports = (player.physical?.medicalHistory || []).reduce((acc, report) => {
+        const date = new Date(report.date);
+        const year = date.getFullYear();
+        const month = date.toLocaleString('es-ES', { month: 'long' });
+        
+        if (!acc[year]) acc[year] = {};
+        if (!acc[year][month]) acc[year][month] = [];
+        
+        acc[year][month].push(report);
+        return acc;
+    }, {} as Record<number, Record<string, MedicalReport[]>>);
+
+    // Sort Years Descending
+    const sortedYears = Object.keys(groupedReports).map(Number).sort((a, b) => b - a);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            // Simple validation
+            if (file.size > 5 * 1024 * 1024) { alert("Archivo muy grande (Máx 5MB)"); return; }
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                if (ev.target?.result) {
+                    const newAtt: Attachment = {
+                        id: nanoid(),
+                        type: file.type.startsWith('video') ? 'video' : 'image',
+                        url: ev.target.result as string,
+                        name: file.name
+                    };
+                    setNewReport(prev => ({ ...prev, attachments: [...(prev.attachments || []), newAtt] }));
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveReport = () => {
+        if (!newReport.title || !newReport.description) return;
+        
+        const report: MedicalReport = {
+            id: nanoid(),
+            date: newReport.date!,
+            title: newReport.title!,
+            description: newReport.description!,
+            severity: newReport.severity as any,
+            status: newReport.status as any,
+            attachments: newReport.attachments || [],
+            doctorName: 'Dr. Equipo' // Mock
+        };
+
+        const updatedHistory = [report, ...(player.physical?.medicalHistory || [])];
+        const updatedPlayer = {
+            ...player,
+            physical: {
+                ...player.physical!,
+                medicalHistory: updatedHistory
+            }
+        };
+        
+        onUpdate(updatedPlayer);
+        setIsEditing(false);
+        setNewReport({ date: new Date().toISOString().split('T')[0], title: '', description: '', severity: 'Baja', status: 'Activo', attachments: [] });
+    };
+
+    const handleDeleteReport = (id: string) => {
+        if (!confirm("¿Eliminar este informe médico?")) return;
+        const updatedHistory = (player.physical?.medicalHistory || []).filter(r => r.id !== id);
+        const updatedPlayer = { ...player, physical: { ...player.physical!, medicalHistory: updatedHistory } };
+        onUpdate(updatedPlayer);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-bold text-scout-200 uppercase tracking-wider flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-scout-gold" /> Historial Clínico
+                </h4>
+                <button 
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="bg-scout-700 hover:bg-scout-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors"
+                >
+                    {isEditing ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    {isEditing ? 'Cancelar' : 'Nuevo Informe'}
+                </button>
+            </div>
+
+            {/* EDITOR */}
+            {isEditing && (
+                <div className="bg-scout-900 border border-scout-700 rounded-xl p-4 animate-scaleIn mb-6 shadow-xl">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label className="text-[10px] text-scout-400 uppercase font-bold">Fecha</label>
+                            <input type="date" value={newReport.date} onChange={e => setNewReport({...newReport, date: e.target.value})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-scout-400 uppercase font-bold">Estado</label>
+                            <select value={newReport.status} onChange={e => setNewReport({...newReport, status: e.target.value as any})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none">
+                                <option>Activo</option>
+                                <option>En Tratamiento</option>
+                                <option>Recuperado</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                        <label className="text-[10px] text-scout-400 uppercase font-bold">Título / Lesión</label>
+                        <input type="text" placeholder="Ej. Esguince de Tobillo Grado II" value={newReport.title} onChange={e => setNewReport({...newReport, title: e.target.value})} className="w-full bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white focus:border-scout-gold outline-none" />
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="text-[10px] text-scout-400 uppercase font-bold">Descripción / Tratamiento</label>
+                        <textarea placeholder="Detalles médicos..." value={newReport.description} onChange={e => setNewReport({...newReport, description: e.target.value})} className="w-full h-24 bg-scout-800 border border-scout-600 rounded p-2 text-sm text-white resize-none focus:border-scout-gold outline-none" />
+                    </div>
+
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-3">
+                            <div>
+                                <label className="text-[10px] text-scout-400 uppercase font-bold block mb-1">Severidad</label>
+                                <select value={newReport.severity} onChange={e => setNewReport({...newReport, severity: e.target.value as any})} className="bg-scout-800 border border-scout-600 rounded p-1.5 text-xs text-white">
+                                    <option>Baja</option>
+                                    <option>Media</option>
+                                    <option>Alta</option>
+                                    <option>Crítica</option>
+                                </select>
+                            </div>
+                            <div className="pt-4">
+                                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*,video/*" />
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs text-scout-400 hover:text-white bg-scout-800 px-2 py-1.5 rounded border border-scout-600 hover:border-scout-400 transition-colors">
+                                    <Paperclip className="w-3.5 h-3.5" /> Adjuntar
+                                </button>
+                            </div>
+                        </div>
+                        <button onClick={handleSaveReport} className="bg-scout-gold hover:bg-yellow-500 text-scout-900 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg">
+                            <Save className="w-4 h-4" /> Guardar Informe
+                        </button>
+                    </div>
+
+                    {/* Attachments Preview */}
+                    {newReport.attachments && newReport.attachments.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                            {newReport.attachments.map((att, idx) => (
+                                <AttachmentPreview 
+                                    key={idx} 
+                                    attachment={att} 
+                                    onRemove={() => setNewReport(prev => ({...prev, attachments: prev.attachments?.filter((_, i) => i !== idx)}))} 
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* CASCADE VIEW */}
+            <div className="space-y-3">
+                {sortedYears.length === 0 ? (
+                    <div className="text-center py-8 text-scout-500 border border-dashed border-scout-700 rounded-lg">
+                        <ActivityIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Sin historial médico registrado.</p>
+                    </div>
+                ) : (
+                    sortedYears.map(year => (
+                        <div key={year} className="border border-scout-700 rounded-xl overflow-hidden bg-scout-800/30">
+                            {/* Year Header */}
+                            <div className="bg-scout-800 px-4 py-2 flex items-center gap-2 border-b border-scout-700">
+                                <Calendar className="w-4 h-4 text-scout-gold" />
+                                <span className="font-bold text-white text-sm">{year}</span>
+                            </div>
+                            
+                            <div className="p-2 space-y-2">
+                                {Object.entries(groupedReports[year] || {}).map(([month, reports]) => (
+                                    <div key={month} className="ml-2 pl-4 border-l-2 border-scout-700">
+                                        <h5 className="text-xs font-bold text-scout-400 uppercase mb-2 mt-1">{month}</h5>
+                                        <div className="space-y-2">
+                                            {(reports as MedicalReport[]).map(report => (
+                                                <div key={report.id} className="bg-scout-800 border border-scout-700 rounded-lg p-3 hover:border-scout-500 transition-colors group relative">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`w-2 h-2 rounded-full ${report.status === 'Activo' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></span>
+                                                                <h6 className="text-sm font-bold text-white">{report.title}</h6>
+                                                            </div>
+                                                            <p className="text-xs text-scout-300 leading-relaxed mb-2">{report.description}</p>
+                                                            <div className="flex items-center gap-3 text-[10px] text-scout-500">
+                                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(report.date).toLocaleDateString()}</span>
+                                                                <span className={`px-1.5 py-0.5 rounded border ${report.severity === 'Alta' || report.severity === 'Crítica' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-scout-600 text-scout-400'}`}>{report.severity}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteReport(report.id)} className="text-scout-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {/* Attachments */}
+                                                    {report.attachments && report.attachments.length > 0 && (
+                                                        <div className="flex gap-2 mt-3 pt-3 border-t border-scout-700/50 overflow-x-auto">
+                                                            {report.attachments.map(att => (
+                                                                <AttachmentPreview key={att.id} attachment={att} />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void; onPlayerUpdate: (p: Player) => void }> = ({ player, onEdit, onPlayerUpdate }) => {
    return (
       <div className="space-y-6 animate-fadeIn pb-6">
          {/* Edit Header for Tab */}
          <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
              <h3 className="font-bold text-white flex items-center gap-2">
-                 <ActivityIcon className="w-5 h-5 text-blue-400" /> Informe Físico
+                 <ActivityIcon className="w-5 h-5 text-blue-400" /> Informe Físico y Rendimiento
              </h3>
              {onEdit && (
                  <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
-                     <Edit className="w-3.5 h-3.5" /> Editar Datos
+                     <Edit className="w-3.5 h-3.5" /> Editar Métricas
                  </button>
              )}
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Radar Chart */}
-            <div className="bg-scout-800 p-4 md:p-6 rounded-xl border border-scout-700 md:col-span-1 shadow-lg flex flex-col justify-center">
-               <h3 className="text-sm font-bold text-scout-100 mb-4 text-center uppercase tracking-wider">Perfil Atlético</h3>
-               {/* Fixed Height Container - Critical */}
-               <div className="h-64 w-full min-h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={stats}>
-                        <PolarGrid stroke="#334155" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                        <RechartsRadar name="Jugador" dataKey="A" stroke="#d4af37" strokeWidth={2} fill="#d4af37" fillOpacity={0.3} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155' }} itemStyle={{ color: '#d4af37' }} />
-                     </RadarChart>
-                  </ResponsiveContainer>
-               </div>
+            {/* NEW: Performance Metrics Sliders (From Screenshot Request) */}
+            <div className="lg:col-span-1 bg-scout-800 p-6 rounded-xl border border-scout-700 shadow-lg h-fit">
+                <div className="flex justify-between items-end mb-6">
+                    <h3 className="text-xs font-bold text-scout-400 uppercase tracking-wider">Métricas de Rendimiento</h3>
+                    <div className="flex items-center gap-2 bg-scout-900 px-3 py-1 rounded border border-emerald-500/30">
+                        <span className="text-xs text-scout-400">Valoración</span>
+                        <span className="text-lg font-bold text-emerald-400">{player.scoutRating}</span>
+                    </div>
+                </div>
+                
+                <div className="space-y-5">
+                    {(Object.entries(player.stats) as [string, number][]).map(([key, val]) => {
+                        const value = val as number;
+                        return (
+                            <div key={key} className="group">
+                                <div className="flex justify-between mb-1.5">
+                                    <span className="text-sm font-medium text-scout-200 capitalize">{STAT_LABELS[key] || key}</span>
+                                    <span className="text-sm font-bold text-white">{value}</span>
+                                </div>
+                                <div className="w-full h-2 bg-scout-900 rounded-full overflow-hidden relative border border-scout-700/50">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-1000 ease-out relative ${value > 85 ? 'bg-emerald-500' : value > 70 ? 'bg-scout-gold' : value > 50 ? 'bg-blue-500' : 'bg-scout-500'}`} 
+                                        style={{ width: `${value}%` }}
+                                    >
+                                        {/* Slider thumb visual */}
+                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg shadow-black/50 transform scale-0 group-hover:scale-125 transition-transform"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Metrics */}
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
-                  <div className="flex justify-between items-start mb-2">
-                     <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Riesgo de Lesión</span>
-                     <ActivityIcon className={`w-5 h-5 ${player.physical?.injuryRisk === 'Alto' ? 'text-red-500' : player.physical?.injuryRisk === 'Medio' ? 'text-yellow-500' : 'text-green-500'}`} />
-                  </div>
-                  <div className={`text-2xl font-black ${player.physical?.injuryRisk === 'Alto' ? 'text-red-400' : player.physical?.injuryRisk === 'Medio' ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                     {player.physical?.injuryRisk || 'N/A'}
-                  </div>
-                  <p className="text-[10px] text-scout-500 mt-1">Basado en carga de trabajo reciente</p>
-               </div>
+            {/* Metrics & Medical History */}
+            <div className="lg:col-span-2 space-y-6">
+                
+                {/* Status Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                            <ActivityIcon className="w-16 h-16" />
+                        </div>
+                        <div className="flex justify-between items-start mb-2 relative z-10">
+                            <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Riesgo de Lesión</span>
+                            <div className={`w-3 h-3 rounded-full ${player.physical?.injuryRisk === 'Alto' ? 'bg-red-500 animate-pulse' : player.physical?.injuryRisk === 'Medio' ? 'bg-yellow-500' : 'bg-emerald-500'}`}></div>
+                        </div>
+                        <div className={`text-3xl font-black relative z-10 ${player.physical?.injuryRisk === 'Alto' ? 'text-red-400' : player.physical?.injuryRisk === 'Medio' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                            {player.physical?.injuryRisk || 'N/A'}
+                        </div>
+                        <p className="text-[10px] text-scout-500 mt-1 relative z-10">Basado en historial reciente</p>
+                    </div>
 
-               <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
-                  <div className="flex justify-between items-start mb-2">
-                     <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Fatiga Acumulada</span>
-                     <Zap className="w-5 h-5 text-orange-500" />
-                  </div>
-                  <div className="text-2xl font-black text-white">{player.physical?.fatigueLevel || 0}%</div>
-                  <div className="w-full bg-scout-900 h-1.5 rounded-full mt-2">
-                     <div 
-                        className={`h-1.5 rounded-full ${player.physical?.fatigueLevel && player.physical.fatigueLevel > 80 ? 'bg-red-500' : 'bg-orange-500'}`} 
-                        style={{ width: `${player.physical?.fatigueLevel || 0}%` }}
-                     ></div>
-                  </div>
-               </div>
+                    <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 flex flex-col justify-between">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold text-scout-400 uppercase tracking-wider">Fatiga Acumulada</span>
+                            <Zap className="w-5 h-5 text-orange-500" />
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <div className="text-3xl font-black text-white">{player.physical?.fatigueLevel || 0}%</div>
+                        </div>
+                        <div className="w-full bg-scout-900 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div 
+                                className={`h-1.5 rounded-full ${player.physical?.fatigueLevel && player.physical.fatigueLevel > 80 ? 'bg-red-500' : 'bg-orange-500'}`} 
+                                style={{ width: `${player.physical?.fatigueLevel || 0}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                </div>
 
-               <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 sm:col-span-2">
-                  <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider flex items-center gap-2">
-                     <HeartPulse className="w-4 h-4"/> Informe Médico / Estado
-                  </h3>
-                  <div className="flex flex-col gap-3">
-                     <div className="flex justify-between border-b border-scout-700 pb-2">
-                        <span className="text-sm text-scout-300">Estado Recuperación</span>
-                        <span className="text-sm font-medium text-white">{player.physical?.recoveryStatus || 'No disponible'}</span>
-                     </div>
-                     <div className="flex justify-between border-b border-scout-700 pb-2">
-                        <span className="text-sm text-scout-300">Última Lesión</span>
-                        <span className="text-sm font-medium text-red-300">{player.physical?.lastInjury || 'Ninguna reciente'}</span>
-                     </div>
-                     <div className="bg-scout-900/50 p-3 rounded-lg text-sm text-scout-200 italic border border-scout-700/50">
-                        "{player.physical?.fitnessNotes || 'Sin notas del preparador físico.'}"
-                     </div>
-                  </div>
-               </div>
+                {/* Medical History Cascade System */}
+                <div className="bg-scout-800/50 p-6 rounded-xl border border-scout-700">
+                    <MedicalHistorySection player={player} onUpdate={onPlayerUpdate} />
+                </div>
+
+                {/* General Fitness Notes */}
+                <div className="bg-scout-800 p-5 rounded-xl border border-scout-700">
+                    <h3 className="text-xs uppercase font-bold text-scout-400 mb-3 tracking-wider flex items-center gap-2">
+                        <FileText className="w-4 h-4"/> Notas del Preparador Físico
+                    </h3>
+                    <div className="bg-scout-900/50 p-4 rounded-lg text-sm text-scout-200 italic border border-scout-700/50 leading-relaxed">
+                        "{player.physical?.fitnessNotes || 'Sin notas registradas actualmente.'}"
+                    </div>
+                </div>
             </div>
          </div>
       </div>
@@ -365,7 +657,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   onDeleteNote,
   onBack 
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'physical' | 'nutrition' | 'contract' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'physical' | 'nutrition' | 'notes'>('overview');
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | undefined>(undefined);
   
@@ -378,12 +670,12 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
 
-  // Tabs configuration
+  // Tabs configuration - REORDERED: General -> Contract -> Physical -> Nutrition -> Notes
   const tabs = [
     { id: 'overview', label: 'General', icon: ActivityIcon },
+    { id: 'contract', label: 'Contrato', icon: Briefcase },
     { id: 'physical', label: 'Físico', icon: HeartPulse },
     { id: 'nutrition', label: 'Nutrición', icon: Apple },
-    { id: 'contract', label: 'Contrato', icon: Briefcase },
     { id: 'notes', label: 'Notas', icon: ClipboardList },
   ];
 
@@ -403,46 +695,85 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
   return (
     <div className="h-full flex flex-col bg-[#0b1120] relative overflow-hidden">
       
-      {/* Top Bar with Back Button for Mobile */}
-      <div className="flex items-center justify-between p-4 border-b border-scout-800 bg-scout-900/50 backdrop-blur-md sticky top-0 z-20">
-         <div className="flex items-center gap-3">
+      {/* Enhanced Top Bar with better visibility and details */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 border-b border-scout-700 bg-gradient-to-r from-scout-900 via-scout-800 to-scout-900 relative overflow-hidden shrink-0">
+         
+         {/* Background pattern */}
+         <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+
+         <div className="flex items-center gap-5 z-10 w-full md:w-auto">
              {/* Back Button only visible if onBack prop is provided (Mobile) */}
              {onBack && (
-                 <button onClick={onBack} className="p-2 -ml-2 text-scout-400 hover:text-white rounded-full hover:bg-scout-800">
-                     <ArrowLeft className="w-5 h-5" />
+                 <button onClick={onBack} className="p-2 -ml-2 text-scout-400 hover:text-white rounded-full hover:bg-scout-800 md:hidden">
+                     <ArrowLeft className="w-6 h-6" />
                  </button>
              )}
              
-             <div className="relative">
+             {/* Large Player Avatar with Rating Badge */}
+             <div className="relative shrink-0">
                  <img 
                     src={player.imageUrl} 
                     alt={player.name} 
-                    className="w-10 h-10 rounded-full object-cover border-2 border-scout-600"
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-scout-700 shadow-2xl bg-scout-800"
                  />
-                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-scout-800 rounded-full flex items-center justify-center border border-scout-600 text-[10px] font-bold text-white">
-                    {player.scoutRating}
+                 <div className="absolute -bottom-2 -right-2 bg-scout-900 rounded-full p-1">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-scout-gold to-yellow-600 flex items-center justify-center text-scout-900 font-black text-sm border-2 border-scout-900 shadow-lg">
+                        {player.scoutRating}
+                    </div>
                  </div>
              </div>
              
-             <div>
-                 <h2 className="text-sm font-bold text-white leading-tight">{player.name}</h2>
-                 <p className="text-[10px] text-scout-400">{player.position} • {player.age} Años</p>
+             {/* Detailed Player Info Block */}
+             <div className="flex-1 min-w-0">
+                 <h2 className="text-2xl md:text-3xl font-black text-white truncate tracking-tight mb-2 leading-none">{player.name}</h2>
+                 
+                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-scout-300 font-medium">
+                    <div className="flex items-center gap-1.5 bg-scout-900/60 px-2 py-1 rounded border border-scout-700/50">
+                        <Shirt className="w-3.5 h-3.5 text-scout-400"/>
+                        <span className="text-white truncate max-w-[120px]">{player.team}</span>
+                    </div>
+                    
+                    <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
+                    
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-scout-100">{player.position}</span>
+                    </div>
+
+                    <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+
+                    <div>{player.age} Años</div>
+
+                    <span className="w-1 h-1 rounded-full bg-scout-600"></span>
+
+                    <div className="flex items-center gap-1.5" title="Nacionalidad">
+                        <MapPin className="w-3.5 h-3.5 text-scout-400"/>
+                        <span>{player.country}</span>
+                    </div>
+
+                    <span className="hidden md:inline w-1 h-1 rounded-full bg-scout-600"></span>
+
+                    <div className="flex items-center gap-1.5" title="Pie Hábil">
+                        <Footprints className="w-3.5 h-3.5 text-scout-400"/>
+                        <span>{player.foot}</span>
+                    </div>
+                 </div>
              </div>
          </div>
 
-         <div className="flex items-center gap-1">
-             <button onClick={handleGenerateReport} className="p-2 text-purple-400 hover:bg-purple-500/10 rounded-lg" title="Generar Informe IA">
+         {/* Actions Toolbar */}
+         <div className="flex items-center gap-2 mt-4 md:mt-0 z-10 self-end md:self-center ml-auto md:ml-0">
+             <button onClick={handleGenerateReport} className="p-2.5 text-purple-400 hover:text-white hover:bg-purple-600/20 rounded-lg transition-colors border border-transparent hover:border-purple-500/30" title="Generar Informe IA">
                  <BrainCircuit className="w-5 h-5" />
              </button>
-             <button onClick={() => exportPlayerProfileToPDF(player, notes)} className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg" title="Exportar PDF">
+             <button onClick={() => exportPlayerProfileToPDF(player, notes)} className="p-2.5 text-green-400 hover:text-white hover:bg-green-600/20 rounded-lg transition-colors border border-transparent hover:border-green-500/30" title="Exportar PDF">
                  <FileDown className="w-5 h-5" />
              </button>
-             <div className="h-6 w-px bg-scout-700 mx-1"></div>
-             <button onClick={() => onEditPlayer(player)} className="p-2 text-scout-400 hover:text-white hover:bg-scout-800 rounded-lg">
-                 <Edit className="w-4 h-4" />
+             <div className="h-8 w-px bg-scout-700 mx-1"></div>
+             <button onClick={() => onEditPlayer(player)} className="p-2.5 text-scout-400 hover:text-white hover:bg-scout-700 rounded-lg transition-colors" title="Editar Perfil">
+                 <Edit className="w-5 h-5" />
              </button>
-             <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg">
-                 <Trash2 className="w-4 h-4" />
+             <button onClick={() => onDeletePlayer(player.id)} className="p-2.5 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Eliminar Jugador">
+                 <Trash2 className="w-5 h-5" />
              </button>
          </div>
       </div>
@@ -596,7 +927,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
            </div>
         )}
 
-        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} />}
+        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} onPlayerUpdate={onPlayerUpdate} />}
         
         {activeTab === 'nutrition' && <NutritionContent player={player} onEdit={() => onEditPlayer(player, 'nutrition', true)} />}
         

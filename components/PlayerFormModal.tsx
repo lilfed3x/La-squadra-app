@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, PlayerStats, ContractDetails, PhysicalProfile, NutritionalReport, BodyCompositionEntry } from '../types';
 import { X, Save, User, Briefcase, Activity, Apple, Plus, Trash2, Upload, AlertCircle } from 'lucide-react';
@@ -324,6 +325,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           </div>
           {!restrictToTab && (
             <div className="flex overflow-x-auto">
+                {/* STRICT ORDER: General -> Contract -> Physical -> Nutrition */}
                 <TabButton id="general" label="General" icon={User} />
                 <TabButton id="contract" label="Contrato" icon={Briefcase} />
                 <TabButton id="physical" label="Físico" icon={Activity} />
