@@ -125,7 +125,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
                            </defs>
                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                            <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickFormatter={(val) => val.substring(5)} />
-                           <YAxis domain={['dataMin - 2', 'dataMax + 2']} stroke="#64748b" fontSize={10} width={30} />
+                           <YAxis domain={[['dataMin - 2'], ['dataMax + 2']]} stroke="#64748b" fontSize={10} width={30} />
                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
                            <Area type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorWeight)" />
                         </AreaChart>
@@ -463,7 +463,9 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                         </button>
                     </div>
                     <div className="space-y-3">
-                       {Object.entries(player.stats).map(([key, value]) => (
+                       {Object.entries(player.stats).map(([key, val]) => {
+                          const value = val as number;
+                          return (
                           <div key={key}>
                              <div className="flex justify-between items-end mb-1">
                                 <span className="text-xs text-scout-300 capitalize">{STAT_LABELS[key] || key}</span>
@@ -476,7 +478,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
                                 ></div>
                              </div>
                           </div>
-                       ))}
+                       )})}
                     </div>
                  </div>
               </div>

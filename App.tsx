@@ -132,12 +132,12 @@ const App: React.FC = () => {
     return () => { unsubscribe(); };
   }, []);
 
-  // Dynamic PWA Icons Only (Manifest reverted to static for stability)
+  // Dynamic PWA Icons & Manifest (Using Data URI for Android stability)
   useEffect(() => {
     // 1. Update Title
     document.title = appSettings.appName;
 
-    // 2. Update Icons visually
+    // 2. Update Icons visually and Generate Dynamic Manifest
     if (appSettings.appLogoUrl) {
       const logoUrl = appSettings.appLogoUrl;
       
@@ -153,6 +153,41 @@ const App: React.FC = () => {
         document.head.appendChild(favicon);
       }
       favicon.href = logoUrl;
+
+      // Dynamic Manifest for Android/PWA
+      const manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement;
+      if (manifestLink) {
+        // Construct the manifest object dynamically
+        const dynamicManifest = {
+          name: appSettings.appName,
+          short_name: appSettings.appName.length > 12 ? appSettings.appName.substring(0, 12) : appSettings.appName,
+          start_url: "/",
+          display: "standalone",
+          background_color: "#000000",
+          theme_color: "#000000",
+          orientation: "portrait",
+          description: "Plataforma profesional de scouting de fútbol.",
+          icons: [
+            {
+              src: logoUrl, // This embeds the custom Base64 or URL directly
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "any maskable"
+            },
+            {
+              src: logoUrl,
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "any maskable"
+            }
+          ]
+        };
+
+        // Use Data URI instead of Blob to avoid network errors on some devices
+        const stringManifest = JSON.stringify(dynamicManifest);
+        const dataUri = `data:application/manifest+json;charset=utf-8,${encodeURIComponent(stringManifest)}`;
+        manifestLink.href = dataUri;
+      }
     }
   }, [appSettings]);
 

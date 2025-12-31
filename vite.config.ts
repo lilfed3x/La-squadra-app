@@ -3,6 +3,7 @@
 import process from 'node:process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   // Carga variables de entorno del sistema (como las de Vercel)
@@ -10,7 +11,37 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [
-      react()
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
+        devOptions: {
+          enabled: true // Enable PWA in dev mode for testing
+        },
+        manifest: {
+          name: 'LA SQUADRA',
+          short_name: 'La Squadra',
+          description: 'Plataforma profesional de scouting de fútbol.',
+          theme_color: '#000000',
+          background_color: '#000000',
+          display: 'standalone',
+          orientation: 'portrait',
+          icons: [
+            {
+              src: 'pwa-icon.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable'
+            },
+            {
+              src: 'pwa-icon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
+        }
+      })
     ],
     define: {
       // Mapeo de variables para que estén disponibles en el cliente
