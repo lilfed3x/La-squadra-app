@@ -13,18 +13,18 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null, // Desactivamos inyección automática para hacerlo manual y robusto
-        manifestFilename: 'manifest.webmanifest', // Nombre estándar distinto al físico para evitar conflictos
+        injectRegister: null, // Manual registration
+        manifestFilename: 'manifest.webmanifest',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // Aumentar límite a 4MB
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         },
         devOptions: {
-          enabled: true,
+          enabled: false, // DISABLED IN DEV to prevent "Blue Screen"/Caching issues during preview
           type: 'module'
         },
         manifest: {

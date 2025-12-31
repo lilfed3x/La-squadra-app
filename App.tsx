@@ -84,9 +84,6 @@ const App: React.FC = () => {
   // PWA Install Prompt Listener
   useEffect(() => {
     const handler = (e: any) => {
-      // IMPORTANTE: NO llamamos a e.preventDefault() aquí.
-      // Al no prevenirlo, permitimos que el navegador muestre su propio "cartel" o mini-infobar automáticamente.
-      // Aún así, guardamos el evento para poder activar la instalación manualmente desde nuestro botón si el usuario cierra el cartel nativo.
       setDeferredPrompt(e);
       setShowInstallButton(true);
     };
@@ -134,27 +131,40 @@ const App: React.FC = () => {
     };
   }, [searchContainerRef]);
 
-  // Initial Data Load
+  // Initial Data Load with Safety Timeout
   useEffect(() => {
     const initApp = async () => {
-      const currentUser = await AuthService.getCurrentSessionUser();
-      if (currentUser) {
-          setUser(currentUser);
+      try {
+        const currentUser = await AuthService.getCurrentSessionUser();
+        if (currentUser) {
+            setUser(currentUser);
+        }
+        
+        setPlayers(dataService.getPlayers());
+        setNotes(dataService.getNotes());
+        setAppSettings(dataService.getSettings());
+        setDbError(dataService.dbError);
+        
+        const initialPlayers = dataService.getPlayers();
+        if (initialPlayers.length > 0 && window.innerWidth >= 768) {
+           setActivePlayerId(initialPlayers[0].id);
+        }
+      } catch (error) {
+        console.error("Initialization error:", error);
+      } finally {
+        setIsLoadingAuth(false);
       }
-      
-      setPlayers(dataService.getPlayers());
-      setNotes(dataService.getNotes());
-      setAppSettings(dataService.getSettings());
-      setDbError(dataService.dbError);
-      
-      const initialPlayers = dataService.getPlayers();
-      // On desktop, select first player automatically. 
-      if (initialPlayers.length > 0 && window.innerWidth >= 768) {
-         setActivePlayerId(initialPlayers[0].id);
-      }
-      setIsLoadingAuth(false);
     };
+
     initApp();
+
+    // Safety timeout: If initApp hangs (e.g. auth network issue), force load after 3 seconds
+    const safetyTimer = setTimeout(() => {
+        setIsLoadingAuth(prev => {
+            if (prev) console.warn("Forcing app load due to timeout");
+            return false;
+        });
+    }, 3000);
 
     const unsubscribe = dataService.subscribe(() => {
       setPlayers(dataService.getPlayers());
@@ -163,7 +173,10 @@ const App: React.FC = () => {
       setDbError(dataService.dbError);
     });
 
-    return () => { unsubscribe(); };
+    return () => { 
+        unsubscribe(); 
+        clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Dynamic PWA Icons
@@ -413,7 +426,10 @@ const App: React.FC = () => {
   if (isLoadingAuth) {
     return (
       <div className="h-screen bg-[#0f172a] flex items-center justify-center">
-        <Activity className="w-8 h-8 text-scout-gold animate-spin" />
+        <div className="flex flex-col items-center">
+            <Activity className="w-10 h-10 text-scout-gold animate-spin mb-4" />
+            <p className="text-scout-400 text-sm animate-pulse">Cargando sistema...</p>
+        </div>
       </div>
     );
   }
