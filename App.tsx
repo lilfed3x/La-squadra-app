@@ -20,8 +20,22 @@ import { nanoid } from 'nanoid';
 
 type ViewMode = 'dashboard' | 'database' | 'live';
 
+// Usuario por defecto para saltar el Login
+const BYPASS_USER: User = {
+  id: 'admin-bypass',
+  email: 'admin@lasquadra.com',
+  name: 'Admin La Squadra',
+  role: 'admin',
+  passwordHash: '',
+  salt: '',
+  organization: 'La Squadra Pro',
+  approved: true,
+  avatar: 'https://ui-avatars.com/api/?name=Admin+LS&background=d4af37&color=0f172a'
+};
+
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  // Inicializamos con el usuario bypass directamente
+  const [user, setUser] = useState<User | null>(BYPASS_USER);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [appSettings, setAppSettings] = useState<AppSettings>(dataService.getSettings());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -49,8 +63,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
+      // Intentamos obtener sesión real, si no, mantenemos el BYPASS_USER
       const currentUser = await AuthService.getCurrentSessionUser();
-      if (currentUser) setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Aseguramos que el usuario bypass persista si no hay backend configurado
+        setUser(BYPASS_USER);
+      }
       
       setPlayers(dataService.getPlayers());
       setNotes(dataService.getNotes());
@@ -80,8 +100,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     AuthService.logout();
-    setUser(null);
-    setShowUserMenu(false);
+    // En modo bypass, logout simplemente recarga la app (y volverá a entrar como admin)
     window.location.reload();
   };
 
@@ -122,6 +141,8 @@ const App: React.FC = () => {
   }, [filteredPlayers]);
 
   if (isLoadingAuth) return <div className="h-screen bg-[#0f172a] flex items-center justify-center"><Activity className="w-8 h-8 text-scout-gold animate-spin" /></div>;
+  
+  // Condición de AuthPage eliminada/bypass: Si no hay usuario (caso raro), mostramos login, pero por defecto user ya está definido.
   if (!user) return <AuthPage onLoginSuccess={handleLoginSuccess} appSettings={appSettings} />;
 
   return (
@@ -159,6 +180,7 @@ const App: React.FC = () => {
              {showUserMenu && (
                <div className="absolute bottom-full left-4 right-4 mb-2 bg-scout-800 border border-scout-700 rounded-xl shadow-xl overflow-hidden z-50">
                    <button onClick={() => setIsProfileModalOpen(true)} className="w-full text-left px-4 py-2 text-xs hover:bg-scout-700 flex items-center gap-2 text-white"><UserIcon className="w-3 h-3" /> Perfil</button>
+                   <button onClick={() => setIsSettingsModalOpen(true)} className="w-full text-left px-4 py-2 text-xs hover:bg-scout-700 flex items-center gap-2 text-white"><Settings className="w-3 h-3" /> Configuración</button>
                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs hover:bg-red-500/10 text-red-400 flex items-center gap-2 border-t border-scout-700"><LogOut className="w-3 h-3" /> Salir</button>
                </div>
              )}

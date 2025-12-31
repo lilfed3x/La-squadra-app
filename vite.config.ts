@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
-        manifestFilename: 'manifest.webmanifest',
+        manifestFilename: 'manifest.json', // Standardize filename
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
           theme_color: '#0f172a',
           background_color: '#0f172a',
           display: 'standalone',
+          display_override: ['window-controls-overlay', 'standalone'],
           orientation: 'portrait',
           start_url: '/',
           scope: '/',
@@ -64,7 +65,7 @@ export default defineConfig(({ mode }) => {
       open: true
     },
     build: {
-      target: 'esnext', // Allows modern syntax if needed, though TLA removed
+      target: 'esnext',
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
