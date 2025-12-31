@@ -1,3 +1,4 @@
+
 // Fixed: Removed missing vite/client reference to resolve build error
 // Manually defining ImportMetaEnv to avoid missing type errors
 interface ImportMetaEnv {
@@ -10,6 +11,20 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+// FIX: Add module declaration for manual service worker registration (used in index.tsx)
+declare module 'virtual:pwa-register' {
+  export interface RegisterSWOptions {
+    immediate?: boolean
+    onNeedRefresh?: () => void
+    onOfflineReady?: () => void
+    onRegistered?: (registration: ServiceWorkerRegistration | undefined) => void
+    onRegisterError?: (error: any) => void
+  }
+
+  export function registerSW(options?: RegisterSWOptions): (reloadPage?: boolean) => Promise<void>
+}
+
+// Declaration for React hook (used in UpdatePrompt.tsx)
 declare module 'virtual:pwa-register/react' {
   import type { Dispatch, SetStateAction } from 'react';
 
