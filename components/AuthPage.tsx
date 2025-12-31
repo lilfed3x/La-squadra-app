@@ -123,13 +123,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, appSettings 
              )}
           </div>
           
-          {/* Title Area: Image or Fallback Text */}
+          {/* Title Area: Image or NOTHING */}
           {appSettings.appTitleImageUrl ? (
              <img src={appSettings.appTitleImageUrl} alt={appSettings.appName} className="h-16 w-auto object-contain mb-1" />
           ) : (
-             <div className="text-center opacity-50">
-               {/* Empty state or placeholder if desired, currently hidden as requested */}
-             </div>
+             // Empty container to maintain layout structure if needed, or simply nothing.
+             // User requested removing text specifically.
+             <div className="h-4"></div>
           )}
         </div>
 
