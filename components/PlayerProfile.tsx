@@ -41,7 +41,7 @@ const getYoutubeId = (url: string) => {
 
 // --- Extracted Components with FULL VISUALIZATION ---
 
-const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
+const NutritionContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
   const macros = player.nutrition?.macros || { protein: 0, carbs: 0, fats: 0 };
   const macroData = [
      { name: 'Proteínas', value: macros.protein, color: '#3b82f6' },
@@ -52,6 +52,18 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
   
   return (
     <div className="space-y-6 animate-fadeIn pb-6">
+         {/* Edit Header for Tab */}
+         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+             <h3 className="font-bold text-white flex items-center gap-2">
+                 <Apple className="w-5 h-5 text-green-400" /> Resumen Nutricional
+             </h3>
+             {onEdit && (
+                 <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
+                     <Edit className="w-3.5 h-3.5" /> Editar Datos
+                 </button>
+             )}
+         </div>
+
          {/* Top Stats Cards */}
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 relative overflow-hidden">
@@ -166,7 +178,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
   );
 };
 
-const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => {
+const PhysicalContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
    const stats = [
       { subject: 'Velocidad', A: player.stats.pace, fullMark: 100 },
       { subject: 'Físico', A: player.stats.physical, fullMark: 100 },
@@ -177,6 +189,18 @@ const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => {
 
    return (
       <div className="space-y-6 animate-fadeIn pb-6">
+         {/* Edit Header for Tab */}
+         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+             <h3 className="font-bold text-white flex items-center gap-2">
+                 <ActivityIcon className="w-5 h-5 text-blue-400" /> Informe Físico
+             </h3>
+             {onEdit && (
+                 <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
+                     <Edit className="w-3.5 h-3.5" /> Editar Datos
+                 </button>
+             )}
+         </div>
+
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Radar Chart */}
@@ -247,9 +271,21 @@ const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => {
    );
 };
 
-const ContractContent: React.FC<{ player: Player }> = ({ player }) => {
+const ContractContent: React.FC<{ player: Player; onEdit?: () => void }> = ({ player, onEdit }) => {
    return (
       <div className="space-y-6 animate-fadeIn pb-6">
+         {/* Edit Header for Tab */}
+         <div className="flex justify-between items-center bg-scout-800 p-4 rounded-xl border border-scout-700">
+             <h3 className="font-bold text-white flex items-center gap-2">
+                 <Briefcase className="w-5 h-5 text-purple-400" /> Información Contractual
+             </h3>
+             {onEdit && (
+                 <button onClick={onEdit} className="flex items-center gap-2 text-xs font-medium text-scout-400 hover:text-white bg-scout-700 hover:bg-scout-600 px-3 py-1.5 rounded-lg transition-colors">
+                     <Edit className="w-3.5 h-3.5" /> Editar Datos
+                 </button>
+             )}
+         </div>
+
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Value Card */}
             <div className="bg-gradient-to-br from-scout-800 to-scout-900 p-6 rounded-xl border border-scout-700 shadow-lg relative overflow-hidden group">
@@ -560,11 +596,11 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
            </div>
         )}
 
-        {activeTab === 'physical' && <PhysicalContent player={player} />}
+        {activeTab === 'physical' && <PhysicalContent player={player} onEdit={() => onEditPlayer(player, 'physical', true)} />}
         
-        {activeTab === 'nutrition' && <NutritionContent player={player} />}
+        {activeTab === 'nutrition' && <NutritionContent player={player} onEdit={() => onEditPlayer(player, 'nutrition', true)} />}
         
-        {activeTab === 'contract' && <ContractContent player={player} />}
+        {activeTab === 'contract' && <ContractContent player={player} onEdit={() => onEditPlayer(player, 'contract', true)} />}
 
         {activeTab === 'notes' && (
            <div className="h-full flex flex-col animate-fadeIn">
