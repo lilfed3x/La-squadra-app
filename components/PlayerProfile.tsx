@@ -5,7 +5,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteList } from './NoteList';
 import { generateScoutingReport } from '../services/geminiService';
 import { exportPlayerProfileToPDF, exportAIReportToPDF } from '../services/exportService';
-import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X } from 'lucide-react';
+import { BrainCircuit, Edit, Trash2, Activity as ActivityIcon, Apple, ArrowLeft, ArrowRight, Briefcase, Shirt, PieChart as PieChartIcon, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, FileDown, Download, Youtube, MoreVertical, Scale, Zap, HeartPulse, DollarSign, Calendar, FileText, X } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar, PieChart, Pie, Cell, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { TacticalPitch } from './TacticalPitch';
 import { PlayerFormModal, ModalTab } from './PlayerFormModal';
@@ -82,11 +82,12 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
 
          {/* Charts Row */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg min-h-[300px] flex flex-col">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
                <h3 className="text-sm font-bold text-scout-100 flex items-center gap-2 mb-4">
                   <PieChartIcon className="w-4 h-4 text-scout-gold" /> Distribución Macros
                </h3>
-               <div className="flex-1 w-full h-full min-h-[200px]">
+               {/* Fixed Height Container for Recharts - Critical for width/height -1 error */}
+               <div className="w-full h-64 min-h-[250px]">
                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                        <Pie
@@ -107,12 +108,13 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
                </div>
             </div>
 
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg min-h-[300px] flex flex-col">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
                <h3 className="text-sm font-bold text-scout-100 flex items-center gap-2 mb-4">
                   <TrendingUp className="w-4 h-4 text-scout-gold" /> Evolución de Peso
                </h3>
                {historyData.length > 0 ? (
-                  <div className="flex-1 w-full h-full min-h-[200px]">
+                  /* Fixed Height Container for Recharts */
+                  <div className="w-full h-64 min-h-[250px]">
                      <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={historyData}>
                            <defs>
@@ -130,7 +132,7 @@ const NutritionContent: React.FC<{ player: Player }> = ({ player }) => {
                      </ResponsiveContainer>
                   </div>
                ) : (
-                  <div className="flex-1 flex items-center justify-center text-scout-500 text-sm italic">
+                  <div className="flex-1 flex items-center justify-center text-scout-500 text-sm italic h-64">
                      Sin datos históricos
                   </div>
                )}
@@ -178,9 +180,10 @@ const PhysicalContent: React.FC<{ player: Player }> = ({ player }) => {
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Radar Chart */}
-            <div className="bg-scout-800 p-4 md:p-6 rounded-xl border border-scout-700 md:col-span-1 shadow-lg flex flex-col justify-center min-h-[300px]">
+            <div className="bg-scout-800 p-4 md:p-6 rounded-xl border border-scout-700 md:col-span-1 shadow-lg flex flex-col justify-center">
                <h3 className="text-sm font-bold text-scout-100 mb-4 text-center uppercase tracking-wider">Perfil Atlético</h3>
-               <div className="h-64 w-full">
+               {/* Fixed Height Container - Critical */}
+               <div className="h-64 w-full min-h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={stats}>
                         <PolarGrid stroke="#334155" />
@@ -402,7 +405,6 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
              <button onClick={() => onEditPlayer(player)} className="p-2 text-scout-400 hover:text-white hover:bg-scout-800 rounded-lg">
                  <Edit className="w-4 h-4" />
              </button>
-             {/* Removed window.confirm logic, simply calls onDeletePlayer which will trigger modal in parent */}
              <button onClick={() => onDeletePlayer(player.id)} className="p-2 text-scout-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg">
                  <Trash2 className="w-4 h-4" />
              </button>
@@ -429,260 +431,205 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({
       </div>
 
       {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-24 md:pb-6">
-         {/* ... (rest of the component content remains same) ... */}
-         {/* Just ensuring the previous full XML is not lost, but for brevity here indicating rest is same */}
-         
-         {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
-               
-               {/* Left Column: Pitch & Identity */}
-               <div className="lg:col-span-1 space-y-6">
-                  {/* Pitch Visualization */}
-                  <div className="bg-green-900/20 rounded-xl border border-scout-700/50 relative overflow-hidden aspect-[3/4] shadow-2xl">
-                      <TacticalPitch position={player.position} />
-                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/60 backdrop-blur-sm border-t border-white/10">
-                          <div className="flex justify-between items-center">
-                             <span className="text-xs font-bold text-white uppercase">{player.team}</span>
-                             <img src={`https://flagcdn.com/24x18/${getCountryCode(player.country)}.png`} alt={player.country} className="w-5 h-auto rounded-sm" />
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 pb-20 md:pb-6">
+        
+        {activeTab === 'overview' && (
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+              
+              {/* Left Col: Pitch & Basic Stats */}
+              <div className="space-y-6">
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-lg h-80 relative group">
+                    <div className="absolute inset-0 bg-gradient-to-t from-scout-900/80 to-transparent z-10 pointer-events-none"></div>
+                    <div className="absolute bottom-3 left-3 z-20">
+                        <span className="text-[10px] text-scout-400 uppercase font-bold tracking-wider">Mapa de Calor / Posición</span>
+                        <div className="flex items-center gap-2">
+                             <span className="text-white font-bold">{player.position}</span>
+                             <span className="text-xs text-scout-400">({player.foot})</span>
+                        </div>
+                    </div>
+                    {/* Pitch Visualizer */}
+                    <TacticalPitch position={player.position} />
+                 </div>
+
+                 {/* Basic Stats Grid */}
+                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-4">
+                    <h3 className="text-xs font-bold text-scout-500 uppercase tracking-wider mb-3">Atributos Principales</h3>
+                    <div className="space-y-3">
+                       {Object.entries(player.stats).map(([key, value]) => (
+                          <div key={key}>
+                             <div className="flex justify-between items-end mb-1">
+                                <span className="text-xs text-scout-300 capitalize">{STAT_LABELS[key] || key}</span>
+                                <span className={`text-xs font-bold ${value >= 80 ? 'text-emerald-400' : value >= 70 ? 'text-yellow-400' : 'text-scout-400'}`}>{value}</span>
+                             </div>
+                             <div className="w-full bg-scout-900 h-1.5 rounded-full">
+                                <div 
+                                   className={`h-1.5 rounded-full ${value >= 80 ? 'bg-emerald-500' : value >= 70 ? 'bg-yellow-500' : 'bg-scout-500'}`} 
+                                   style={{ width: `${value}%` }}
+                                ></div>
+                             </div>
                           </div>
-                      </div>
-                  </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
 
-                  {/* Quick Stats Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                     <div className="bg-scout-800 p-3 rounded-lg border border-scout-700 text-center">
-                        <span className="text-[10px] text-scout-500 uppercase font-bold">Altura</span>
-                        <div className="text-sm font-bold text-white">{player.height}</div>
-                     </div>
-                     <div className="bg-scout-800 p-3 rounded-lg border border-scout-700 text-center">
-                        <span className="text-[10px] text-scout-500 uppercase font-bold">Peso</span>
-                        <div className="text-sm font-bold text-white">{player.weight}</div>
-                     </div>
-                     <div className="bg-scout-800 p-3 rounded-lg border border-scout-700 text-center">
-                        <span className="text-[10px] text-scout-500 uppercase font-bold">Pie</span>
-                        <div className="text-sm font-bold text-white">{player.foot}</div>
-                     </div>
-                     <div className="bg-scout-800 p-3 rounded-lg border border-scout-700 text-center">
-                        <span className="text-[10px] text-scout-500 uppercase font-bold">Edad</span>
-                        <div className="text-sm font-bold text-white">{player.age}</div>
-                     </div>
-                  </div>
-               </div>
-
-               {/* Right Column: Stats & Analysis */}
-               <div className="lg:col-span-2 space-y-6">
-                  
-                  {/* Stats Bars */}
-                  <div className="bg-scout-800 rounded-xl border border-scout-700 p-5 shadow-lg">
-                      <div className="flex justify-between items-center mb-4">
-                         <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                            <ActivityIcon className="w-4 h-4 text-scout-gold" /> Atributos Principales
+              {/* Middle/Right Col: Detailed Views */}
+              <div className="lg:col-span-2 space-y-6">
+                  {/* Latest Note Teaser */}
+                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 p-5 rounded-xl border border-scout-700 shadow-md">
+                      <div className="flex justify-between items-start mb-3">
+                         <h3 className="font-bold text-white flex items-center gap-2">
+                            <ClipboardList className="w-4 h-4 text-scout-gold" /> Última Observación
                          </h3>
-                         <span className="bg-scout-900 text-scout-gold px-2 py-1 rounded text-xs font-bold border border-scout-700">{player.scoutRating} OVR</span>
+                         <button onClick={() => setActiveTab('notes')} className="text-xs text-scout-400 hover:text-white flex items-center gap-1">
+                            Ver todas <ArrowRight className="w-3 h-3" />
+                         </button>
                       </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                         {Object.entries(player.stats).map(([key, val]) => {
-                           const value = val as number;
-                           return (
-                            <div key={key} className="group">
-                               <div className="flex justify-between mb-1">
-                                  <span className="text-xs font-medium text-scout-300 uppercase">{STAT_LABELS[key] || key}</span>
-                                  <span className={`text-xs font-bold ${value >= 80 ? 'text-emerald-400' : value >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>{value}</span>
-                               </div>
-                               <div className="h-2 w-full bg-scout-900 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full transition-all duration-500 group-hover:brightness-110 ${
-                                       value >= 80 ? 'bg-emerald-500' : value >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`} 
-                                    style={{ width: `${value}%` }}
-                                  ></div>
-                               </div>
+                      {notes.length > 0 ? (
+                         <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                            <p className="text-sm text-scout-200 line-clamp-2 italic">"{notes[0].content}"</p>
+                            <div className="mt-2 flex items-center gap-2 text-[10px] text-scout-500">
+                               <span>{new Date(notes[0].timestamp).toLocaleDateString()}</span>
+                               <span>•</span>
+                               <span className="uppercase font-bold text-scout-400">{notes[0].category}</span>
                             </div>
-                           );
-                         })}
-                      </div>
+                         </div>
+                      ) : (
+                         <p className="text-sm text-scout-500 italic">No hay notas registradas aún.</p>
+                      )}
                   </div>
 
-                  {/* Recent Notes Preview */}
-                  <div className="bg-scout-800 rounded-xl border border-scout-700 p-5 shadow-lg flex flex-col h-64">
-                      <div className="flex justify-between items-center mb-4">
-                         <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                            <ClipboardList className="w-4 h-4 text-blue-400" /> Últimas Observaciones
-                         </h3>
-                         <button onClick={() => setActiveTab('notes')} className="text-xs text-blue-400 hover:text-white transition-colors">Ver todas</button>
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
-                         {notes.length > 0 ? (
-                            notes.slice(0, 3).map(note => (
-                               <div key={note.id} className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/50 hover:border-scout-600 transition-colors cursor-pointer" onClick={() => setActiveTab('notes')}>
-                                  <div className="flex justify-between items-start mb-1">
-                                     <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold border ${
-                                         note.category === 'Fortaleza' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 
-                                         note.category === 'Debilidad' ? 'text-red-400 border-red-500/30 bg-red-500/10' : 
-                                         'text-scout-400 border-scout-600 bg-scout-800'
-                                     }`}>{note.category}</span>
-                                     <span className="text-[10px] text-scout-500">{new Date(note.timestamp).toLocaleDateString()}</span>
-                                  </div>
-                                  <p className="text-xs text-scout-200 line-clamp-2">{note.content}</p>
-                               </div>
-                            ))
-                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-scout-500 text-xs text-center border border-dashed border-scout-700 rounded-lg">
-                               <p>No hay notas registradas.</p>
-                               <button onClick={() => { setActiveTab('notes'); setIsNoteEditorOpen(true); }} className="mt-2 text-blue-400 hover:text-white underline">Crear primera nota</button>
-                            </div>
-                         )}
-                      </div>
+                  {/* Physical & Contract Teasers (Clickable to switch tabs) */}
+                  <div className="grid grid-cols-2 gap-4">
+                     <div onClick={() => setActiveTab('physical')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 cursor-pointer transition-all group">
+                        <div className="flex justify-between items-start mb-2">
+                           <ActivityIcon className="w-5 h-5 text-blue-400" />
+                           <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all" />
+                        </div>
+                        <div className="text-2xl font-bold text-white mb-1">{player.physical?.recoveryStatus || 'N/A'}</div>
+                        <p className="text-xs text-scout-500">Estado Físico Actual</p>
+                     </div>
+                     <div onClick={() => setActiveTab('contract')} className="bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-purple-500/50 cursor-pointer transition-all group">
+                        <div className="flex justify-between items-start mb-2">
+                           <Briefcase className="w-5 h-5 text-purple-400" />
+                           <ArrowRight className="w-4 h-4 text-scout-600 group-hover:text-purple-400 opacity-0 group-hover:opacity-100 transition-all" />
+                        </div>
+                        <div className="text-2xl font-bold text-white mb-1">{player.contract?.contractExpiration ? new Date(player.contract.contractExpiration).getFullYear() : 'N/A'}</div>
+                        <p className="text-xs text-scout-500">Fin de Contrato</p>
+                     </div>
                   </div>
 
-                  {/* Shortcuts */}
-                  <div className="grid grid-cols-3 gap-3">
-                     <button onClick={() => onEditPlayer(player, 'physical', true)} className="bg-scout-800 hover:bg-scout-700 p-3 rounded-xl border border-scout-700 transition-all flex flex-col items-center gap-2 group">
-                        <HeartPulse className="w-5 h-5 text-red-400 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] uppercase font-bold text-scout-300">Actualizar Físico</span>
-                     </button>
-                     <button onClick={() => onEditPlayer(player, 'nutrition', true)} className="bg-scout-800 hover:bg-scout-700 p-3 rounded-xl border border-scout-700 transition-all flex flex-col items-center gap-2 group">
-                        <Apple className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] uppercase font-bold text-scout-300">Actualizar Dieta</span>
-                     </button>
-                     <button onClick={() => onEditPlayer(player, 'contract', true)} className="bg-scout-800 hover:bg-scout-700 p-3 rounded-xl border border-scout-700 transition-all flex flex-col items-center gap-2 group">
-                        <Briefcase className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] uppercase font-bold text-scout-300">Estado Contrato</span>
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* FULL VISUALIZATION TABS */}
-         {activeTab === 'physical' && <PhysicalContent player={player} />}
-         {activeTab === 'nutrition' && <NutritionContent player={player} />}
-         {activeTab === 'contract' && <ContractContent player={player} />}
-
-         {/* NOTES TAB */}
-         {activeTab === 'notes' && (
-            <div className="h-full flex flex-col animate-fadeIn">
-               {/* ... Notes Tab Content ... */}
-               <div className="flex justify-between items-center mb-4 shrink-0">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                     <ClipboardList className="w-4 h-4 text-scout-gold" /> Notas y Observaciones
-                  </h3>
-                  {!isNoteEditorOpen && (
-                      <button 
-                        onClick={() => { setEditingNote(undefined); setIsNoteEditorOpen(true); }}
-                        className="bg-scout-accent hover:bg-emerald-400 text-scout-900 px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2"
-                      >
-                         <Edit className="w-4 h-4" /> Nueva Nota
-                      </button>
+                  {/* AI Quick Analysis (If available) */}
+                  {aiReport && (
+                     <div className="bg-purple-900/10 border border-purple-500/20 p-5 rounded-xl">
+                        <h3 className="text-sm font-bold text-purple-300 mb-2 flex items-center gap-2">
+                           <BrainCircuit className="w-4 h-4" /> Análisis IA Reciente
+                        </h3>
+                        <div className="text-sm text-scout-200 line-clamp-4 leading-relaxed">
+                           {aiReport.substring(0, 300)}...
+                        </div>
+                     </div>
                   )}
-               </div>
+              </div>
+           </div>
+        )}
 
-               {isNoteEditorOpen ? (
-                  <NoteEditor 
-                     onSave={(content, category, tags, attachments) => {
-                        if (editingNote) {
-                             const updated = { ...editingNote, content, category, tags, attachments, isEdited: true, timestamp: Date.now() }; 
-                             onEditNote(updated);
-                        } else {
-                             onAddNote(content, category, tags, attachments);
-                        }
-                        setIsNoteEditorOpen(false);
-                        setEditingNote(undefined);
-                     }}
-                     onCancel={() => {
-                         setIsNoteEditorOpen(false);
-                         setEditingNote(undefined);
-                     }}
-                     initialData={editingNote}
-                  />
-               ) : (
-                  <div className="flex-1 min-h-0">
-                     <NoteList 
-                        notes={notes} 
-                        searchQuery={noteSearch}
-                        setSearchQuery={setNoteSearch}
-                        selectedCategory={noteCategory}
-                        setSelectedCategory={setNoteCategory}
-                        currentUser={currentUser}
-                        allUsers={allUsers}
-                        onEditNote={handleEditNoteRequest}
-                        onDeleteNote={onDeleteNote}
-                     />
-                  </div>
-               )}
-            </div>
-         )}
+        {activeTab === 'physical' && <PhysicalContent player={player} />}
+        
+        {activeTab === 'nutrition' && <NutritionContent player={player} />}
+        
+        {activeTab === 'contract' && <ContractContent player={player} />}
 
+        {activeTab === 'notes' && (
+           <div className="h-full flex flex-col animate-fadeIn">
+              <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-bold text-white">Historial de Scouting</h3>
+                 <button 
+                    onClick={() => { setEditingNote(undefined); setIsNoteEditorOpen(true); }}
+                    className="bg-scout-accent hover:bg-emerald-400 text-scout-900 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                 >
+                    <Edit className="w-4 h-4" /> Nueva Nota
+                 </button>
+              </div>
+
+              {/* Notes List Component */}
+              <div className="flex-1 min-h-0 relative">
+                  {isNoteEditorOpen ? (
+                      <div className="absolute inset-0 z-10 bg-[#0b1120]">
+                          <NoteEditor 
+                             onSave={(content, category, tags, attachments) => {
+                                 if (editingNote) {
+                                     onEditNote({ ...editingNote, content, category, tags, attachments, timestamp: Date.now(), isEdited: true });
+                                 } else {
+                                     onAddNote(content, category, tags, attachments);
+                                 }
+                                 setIsNoteEditorOpen(false);
+                                 setEditingNote(undefined);
+                             }}
+                             onCancel={() => { setIsNoteEditorOpen(false); setEditingNote(undefined); }}
+                             initialData={editingNote}
+                          />
+                      </div>
+                  ) : (
+                      <NoteList 
+                         notes={notes}
+                         searchQuery={noteSearch}
+                         setSearchQuery={setNoteSearch}
+                         selectedCategory={noteCategory}
+                         setSelectedCategory={setNoteCategory}
+                         currentUser={currentUser}
+                         allUsers={allUsers}
+                         onEditNote={handleEditNoteRequest}
+                         onDeleteNote={onDeleteNote}
+                      />
+                  )}
+              </div>
+           </div>
+        )}
       </div>
 
       {/* AI Report Modal Overlay */}
       {showAiModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           {/* ... AI Modal Content ... */}
-           <div className="bg-scout-800 rounded-2xl border border-scout-700 w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-scaleIn">
-              <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900/50">
-                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <BrainCircuit className="w-5 h-5 text-purple-400" /> Informe de Inteligencia Artificial
-                 </h3>
-                 <button onClick={() => setShowAiModal(false)} className="text-scout-400 hover:text-white">
-                    <X className="w-5 h-5" />
-                 </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0b1120]">
-                 {isGeneratingReport ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                       <BrainCircuit className="w-12 h-12 text-purple-400 animate-pulse" />
-                       <p className="text-scout-300 animate-pulse">Analizando métricas y notas del jugador...</p>
-                    </div>
-                 ) : (
-                    <div className="prose prose-invert prose-sm max-w-none">
-                       {aiReport ? (
-                          aiReport.split('\n').map((line, i) => {
-                             if (line.startsWith('**') || line.startsWith('#')) {
-                                return <h4 key={i} className="text-purple-300 font-bold mt-4 mb-2 text-base">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>
-                             }
-                             if (line.trim().startsWith('-')) {
-                                return <li key={i} className="text-scout-300 ml-4 mb-1">{line.replace('-', '')}</li>
-                             }
-                             return <p key={i} className="text-scout-200 mb-2 leading-relaxed">{line}</p>
-                          })
-                       ) : (
-                          <p className="text-red-400">Error al generar el informe.</p>
-                       )}
-                    </div>
-                 )}
-              </div>
-              
-              {!isGeneratingReport && aiReport && (
-                 <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end">
-                    <button 
-                       onClick={() => exportAIReportToPDF(player, aiReport)}
-                       className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-sm transition-colors"
-                    >
-                       <FileDown className="w-4 h-4" /> Descargar Informe PDF
-                    </button>
-                 </div>
-              )}
-           </div>
-        </div>
-      )}
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-scout-800 w-full max-w-2xl max-h-[80vh] rounded-2xl border border-scout-700 shadow-2xl flex flex-col animate-scaleIn">
+               <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900/50">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                     <BrainCircuit className="w-5 h-5 text-purple-400" />
+                     Informe de Scouting IA
+                  </h3>
+                  <button onClick={() => setShowAiModal(false)} className="text-scout-400 hover:text-white">
+                     <X className="w-5 h-5" />
+                  </button>
+               </div>
+               
+               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0b1120]/30">
+                  {isGeneratingReport ? (
+                     <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                        <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                        <p className="text-purple-300 animate-pulse font-medium">Analizando datos del jugador...</p>
+                     </div>
+                  ) : (
+                     <div className="prose prose-invert prose-sm max-w-none">
+                        <div className="whitespace-pre-wrap text-scout-200 leading-relaxed font-sans">
+                           {aiReport}
+                        </div>
+                     </div>
+                  )}
+               </div>
 
+               {!isGeneratingReport && (
+                  <div className="p-4 border-t border-scout-700 bg-scout-900/50 flex justify-end gap-3">
+                      <button onClick={() => aiReport && exportAIReportToPDF(player, aiReport)} className="px-4 py-2 bg-scout-700 hover:bg-scout-600 text-white rounded-lg text-sm font-medium flex items-center gap-2">
+                          <FileDown className="w-4 h-4" /> Guardar PDF
+                      </button>
+                      <button onClick={() => setShowAiModal(false)} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-bold">
+                          Cerrar
+                      </button>
+                  </div>
+               )}
+            </div>
+         </div>
+      )}
     </div>
   );
 };
-
-// Helper for Flag URL (basic mapping)
-function getCountryCode(countryName: string) {
-    // Simple mock map - in production use a real library or ISO map
-    const map: Record<string, string> = {
-        'Argentina': 'ar', 'Brasil': 'br', 'España': 'es', 'Francia': 'fr',
-        'Inglaterra': 'gb-eng', 'Alemania': 'de', 'Italia': 'it', 'Portugal': 'pt',
-        'Uruguay': 'uy', 'Colombia': 'co', 'Bélgica': 'be', 'Holanda': 'nl',
-        'Croacia': 'hr', 'Noruega': 'no'
-    };
-    return map[countryName] || 'un'; // UN flag as fallback
-}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Player } from '../types';
 import { 
@@ -48,7 +49,8 @@ export const PlayerStatsDashboard: React.FC<PlayerStatsDashboardProps> = ({ play
             <TrendingUp className="w-5 h-5 text-scout-accent" />
             <h3 className="text-sm font-bold text-scout-100 uppercase tracking-wider">Trayectoria de Forma (Últimos 6 Partidos)</h3>
           </div>
-          <div className="h-64">
+          {/* Fixed height container */}
+          <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={seasonData}>
                 <defs>
@@ -76,7 +78,8 @@ export const PlayerStatsDashboard: React.FC<PlayerStatsDashboardProps> = ({ play
             <Activity className="w-5 h-5 text-blue-400" />
             <h3 className="text-sm font-bold text-scout-100 uppercase tracking-wider">Análisis por Categoría</h3>
           </div>
-          <div className="h-64">
+          {/* Fixed height container */}
+          <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={attributeComparison} layout="vertical" margin={{ left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
@@ -102,7 +105,8 @@ export const PlayerStatsDashboard: React.FC<PlayerStatsDashboardProps> = ({ play
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-500"></span> Fallo</span>
             </div>
          </div>
-         <div className="h-64">
+         {/* Fixed height container */}
+         <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />

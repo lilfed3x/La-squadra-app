@@ -94,9 +94,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ players }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Squad Position Distribution */}
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col h-80 md:h-96">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
               <h3 className="text-sm font-bold text-white mb-4">Distribución de Posiciones</h3>
-              <div className="flex-1 min-h-0">
+              {/* FIX: Fixed height container instead of flex-1 to prevent width(-1) error */}
+              <div className="w-full h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -128,9 +129,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ players }) => {
             </div>
 
             {/* Top Goal Contributors */}
-            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col h-80 md:h-96">
+            <div className="bg-scout-800 p-5 rounded-xl border border-scout-700 shadow-lg flex flex-col">
               <h3 className="text-sm font-bold text-white mb-4">Jugadores Clave (Estadísticas Proyectadas)</h3>
-              <div className="flex-1 min-h-0">
+              {/* FIX: Fixed height container instead of flex-1 */}
+              <div className="w-full h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     layout="vertical"

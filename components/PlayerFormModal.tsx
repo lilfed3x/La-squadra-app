@@ -99,6 +99,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     name: '',
     team: '',
     position: '',
+    country: '', // Default country
     age: 20,
     height: '',
     foot: 'Derecha',
@@ -144,6 +145,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         name: '',
         team: '',
         position: '',
+        country: '',
         age: 20,
         height: '',
         foot: 'Derecha',
@@ -342,10 +344,15 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   <label className="block text-xs text-scout-400 mb-1">Nombre Completo</label>
                   <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-scout-900 border border-scout-700 rounded p-2 text-sm text-scout-100 focus:border-scout-accent outline-none" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs text-scout-400 mb-1">Equipo Actual</label>
                     <input required type="text" value={formData.team} onChange={e => setFormData({...formData, team: e.target.value})} className="w-full bg-scout-900 border border-scout-700 rounded p-2 text-sm text-scout-100 focus:border-scout-accent outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-scout-400 mb-1">País / Nacionalidad</label>
+                    <input required type="text" value={formData.country || ''} onChange={e => setFormData({...formData, country: e.target.value})} className="w-full bg-scout-900 border border-scout-700 rounded p-2 text-sm text-scout-100 focus:border-scout-accent outline-none" placeholder="Ej. Argentina" />
                   </div>
                   <div>
                     <label className="block text-xs text-scout-400 mb-1">Posición</label>
